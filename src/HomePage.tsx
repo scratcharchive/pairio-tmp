@@ -9,7 +9,7 @@ type Props = {
 const HomePage: FunctionComponent<Props> = () => {
   return (
     <div>
-      <h3>Log in using GitHub in order to use Pairio</h3>
+      <h3>Pairio</h3>
       <LoginButton />
     </div>
   )
