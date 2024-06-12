@@ -1,3 +1,3 @@
-import { addAppHandler } from "../apiHelpers/requestHandlers";
+import { addAppHandler } from "../apiHelpers/requestHandlers.js";
 
 export default addAppHandler;

@@ -1,3 +1,3 @@
-import { setUserInfoHandler } from "../apiHelpers/requestHandlers";
+import { setUserInfoHandler } from "../apiHelpers/requestHandlers.js";
 
 export default setUserInfoHandler;

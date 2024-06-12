@@ -1,3 +1,3 @@
-import { cancelJobHandler } from "../apiHelpers/requestHandlers";
+import { cancelJobHandler } from "../apiHelpers/requestHandlers.js";
 
 export default cancelJobHandler;

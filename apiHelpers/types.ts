@@ -362,13 +362,31 @@ export type SetUserInfoResponse = {
 // createJob
 export type CreateJobRequest = {
   type: 'createJobRequest'
-  job: PairioJob // jobId should be empty string and jobPrivateKey should be null
+  userId: string
+  batchId: string
+  projectName: string
+  appName: string
+  processorName: string
+  inputFiles: PairioJobInputFile[]
+  outputFiles: PairioJobOutputFile[]
+  parameters: PairioJobParameter[]
+  requiredResources: PairioJobRequiredResources
+  secrets: PairioJobSecret[]
 }
 
 export const isCreateJobRequest = (x: any): x is CreateJobRequest => {
   return validateObject(x, {
     type: isEqualTo('createJobRequest'),
-    job: isPairioJob
+    userId: isString,
+    batchId: isString,
+    projectName: isString,
+    appName: isString,
+    processorName: isString,
+    inputFiles: isArrayOf(isPairioJobInputFile),
+    outputFiles: isArrayOf(isPairioJobOutputFile),
+    parameters: isArrayOf(isPairioJobParameter),
+    requiredResources: isPairioJobRequiredResources,
+    secrets: isArrayOf(isPairioJobSecret)
   })
 }
 
@@ -513,13 +531,15 @@ export type GetSignedUploadUrlRequest = {
   type: 'getSignedUploadUrlRequest'
   jobId: string
   url: string
+  size: number
 }
 
 export const isGetSignedUploadUrlRequest = (x: any): x is GetSignedUploadUrlRequest => {
   return validateObject(x, {
     type: isEqualTo('getSignedUploadUrlRequest'),
     jobId: isString,
-    url: isString
+    url: isString,
+    size: isNumber
   })
 }
 

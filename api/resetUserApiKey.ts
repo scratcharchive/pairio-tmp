@@ -1,3 +1,3 @@
-import { resetUserApiKeyHandler } from "../apiHelpers/requestHandlers";
+import { resetUserApiKeyHandler } from "../apiHelpers/requestHandlers.js";
 
 export default resetUserApiKeyHandler;

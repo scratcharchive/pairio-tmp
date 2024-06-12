@@ -1,3 +1,3 @@
-import { addUserHandler } from "../apiHelpers/requestHandlers";
+import { addUserHandler } from "../apiHelpers/requestHandlers.js";
 
 export default addUserHandler;

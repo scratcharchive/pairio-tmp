@@ -1,3 +1,3 @@
-import { getAppHandler } from "../apiHelpers/requestHandlers";
+import { getAppHandler } from "../apiHelpers/requestHandlers.js";
 
 export default getAppHandler;

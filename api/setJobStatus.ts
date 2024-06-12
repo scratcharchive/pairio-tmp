@@ -1,3 +1,3 @@
-import { setJobStatusHandler } from "../apiHelpers/requestHandlers";
+import { setJobStatusHandler } from "../apiHelpers/requestHandlers.js";
 
 export default setJobStatusHandler;

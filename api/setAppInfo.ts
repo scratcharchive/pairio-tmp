@@ -1,3 +1,3 @@
-import { setAppInfoHandler } from "../apiHelpers/requestHandlers";
+import { setAppInfoHandler } from "../apiHelpers/requestHandlers.js";
 
 export default setAppInfoHandler;

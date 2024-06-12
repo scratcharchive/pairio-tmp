@@ -1,3 +1,3 @@
-import getAppHandler from "./getApp";
+import getAppHandler from "./getApp.js";
 
 export default getAppHandler;

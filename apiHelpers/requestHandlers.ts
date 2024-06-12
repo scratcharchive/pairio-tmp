@@ -1,8 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import allowCors from "./allowCors";
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { getMongoClient } from "./getMongoClient";
-import { AddAppResponse, AddUserResponse, CancelJobResponse, ComputeClient, CreateComputeClientResponse, DeleteAppResponse, DeleteComputeClientResponse, GetAppResponse, GetAppsResponse, GetComputeClientResponse, GetComputeClientsResponse, GetJobResponse, GetJobsResponse, GetSignedUploadUrlResponse, PairioApp, PairioJob, PairioUser, ResetUserApiKeyResponse, SetAppInfoResponse, SetUserInfoResponse, isAddAppRequest, isAddUserRequest, isCancelJobRequest, isComputeClient, isCreateComputeClientRequest, isCreateJobRequest, isDeleteAppRequest, isDeleteComputeClientRequest, isGetAppRequest, isGetAppsRequest, isGetComputeClientRequest, isGetComputeClientsRequest, isGetJobRequest, isGetJobsRequest, isGetSignedUploadUrlRequest, isPairioApp, isPairioJob, isPairioUser, isResetUserApiKeyRequest, isSetAppInfoRequest, isSetJobStatusRequest, isSetUserInfoRequest } from "./types";
+import allowCors from "./allowCors.js";
+import { getMongoClient } from "./getMongoClient.js";
+import { AddAppResponse, AddUserResponse, CancelJobResponse, ComputeClient, CreateComputeClientResponse, CreateJobResponse, DeleteAppResponse, DeleteComputeClientResponse, GetAppResponse, GetAppsResponse, GetComputeClientResponse, GetComputeClientsResponse, GetJobResponse, GetJobsResponse, GetSignedUploadUrlResponse, PairioApp, PairioJob, PairioUser, ResetUserApiKeyResponse, SetAppInfoResponse, SetUserInfoResponse, isAddAppRequest, isAddUserRequest, isCancelJobRequest, isComputeClient, isCreateComputeClientRequest, isCreateJobRequest, isDeleteAppRequest, isDeleteComputeClientRequest, isGetAppRequest, isGetAppsRequest, isGetComputeClientRequest, isGetComputeClientsRequest, isGetJobRequest, isGetJobsRequest, isGetSignedUploadUrlRequest, isPairioApp, isPairioJob, isPairioUser, isResetUserApiKeyRequest, isSetAppInfoRequest, isSetJobStatusRequest, isSetUserInfoRequest } from "./types.js";
+
+const TEMPORY_ACCESS_TOKEN = process.env.TEMPORY_ACCESS_TOKEN;
+if (!TEMPORY_ACCESS_TOKEN) {
+    throw new Error("TEMPORY_ACCESS_TOKEN is not set");
+}
 
 // addApp handler
 export const addAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
@@ -163,15 +168,67 @@ export const createJobHandler = allowCors(async (req: VercelRequest, res: Vercel
         res.status(400).json({ error: "Invalid request" });
         return;
     }
-    const job = rr.job;
-    const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!(await authenticateUser(job.userId, authorizationToken))) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-    }
     try {
-        // todo
-        throw Error('Not implemented');
+        const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateUser(rr.userId, authorizationToken))) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        const app = await fetchApp(rr.appName);
+        if (!app) {
+            res.status(404).json({ error: "App not found" });
+            return;
+        }
+        if ((!app.jobCreateUsers.includes(rr.userId)) && (!app.jobCreateUsers.includes('*'))) {
+            res.status(401).json({ error: "This user is not allowed to create jobs for this app" });
+            return;
+        }
+
+        const jobId = generateJobId();
+        const jobPrivateKey = generateJobPrivateKey();
+
+        for (const outputFile of rr.outputFiles) {
+            if (outputFile.url) {
+                throw Error('Output file url should not be set');
+            }
+            outputFile.url = await createOutputFileUrl({ appName: rr.appName, processorName: rr.processorName, jobId, outputName: outputFile.name, outputFileBaseName: outputFile.fileBaseName });
+        }
+        const consoleOutputUrl = await createOutputFileUrl({ appName: rr.appName, processorName: rr.processorName, jobId, outputName: 'console_output', outputFileBaseName: 'output.txt' });
+        const resourceUtilizationLogUrl = await createOutputFileUrl({ appName: rr.appName, processorName: rr.processorName, jobId, outputName: 'resource_utilization_log', outputFileBaseName: 'log.jsonl' });
+
+        const job: PairioJob = {
+            jobId,
+            jobPrivateKey,
+            userId: rr.userId,
+            batchId: rr.batchId,
+            projectName: rr.projectName,
+            appName: rr.appName,
+            processorName: rr.processorName,
+            inputFiles: rr.inputFiles,
+            outputFiles: rr.outputFiles,
+            parameters: rr.parameters,
+            requiredResources: rr.requiredResources,
+            secrets: rr.secrets,
+            inputFileUrls: rr.inputFiles.map(f => f.url),
+            outputFileUrls: rr.outputFiles.map(f => f.url),
+            consoleOutputUrl,
+            resourceUtilizationLogUrl,
+            timestampCreatedSec: Date.now() / 1000,
+            timestampStartedSec: null,
+            timestampFinishedSec: null,
+            canceled: false,
+            status: 'pending',
+            error: null,
+            computeClientId: null,
+            computeSlot: null,
+            imageUri: null
+        }
+        await insertJob(job);
+        const resp: CreateJobResponse = {
+            type: 'createJobResponse',
+            jobId
+        };
+        res.status(200).json(resp);
     }
     catch (e) {
         console.error(e);
@@ -350,15 +407,76 @@ export const setJobStatusHandler = allowCors(async (req: VercelRequest, res: Ver
         return;
     }
     try {
+        const computeClientId = rr.computeClientId;
+        const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateComputeClient(computeClientId, authorizationToken))) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
         const jobs = await fetchJobs({ jobId: rr.jobId });
         if (jobs.length === 0) {
             res.status(404).json({ error: "Job not found" });
             return;
         }
-        // const job = jobs[0];
-        // const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-        // todo
-        throw Error('Not implemented');
+        const job = jobs[0]
+        const computeClient = await fetchComputeClient(computeClientId);
+        if (!computeClient) {
+            res.status(404).json({ error: "Compute client not found" });
+            return;
+        }
+        const computeClientUserId = computeClient.userId;
+        const app = await fetchApp(job.appName);
+        if (!app) {
+            res.status(404).json({ error: "App not found" });
+            return;
+        }
+        if (!app.jobProcessUsers.includes(computeClientUserId)) {
+            res.status(401).json({ error: "This compute client is not allowed to process jobs for this app" });
+            return;
+        }
+        if (rr.status === 'running') {
+            if (job.status !== 'pending') {
+                res.status(400).json({ error: "Job is not in pending status" });
+                return;
+            }
+            if (job.computeClientId) {
+                res.status(400).json({ error: "Job already has a compute client" });
+                return;
+            }
+            await atomicUpdateJob(rr.jobId, 'pending', { status: 'running', computeClientId, timestampStartedSec: Date.now() / 1000 });
+        }
+        else if (rr.status === 'completed' || rr.status === 'failed') {
+            if (job.status !== 'running') {
+                res.status(400).json({ error: "Job is not in running status" });
+                return;
+            }
+            if (job.computeClientId !== computeClientId) {
+                res.status(401).json({ error: "Mismatch between computeClientId in request and job" });
+                return;
+            }
+            if (rr.status === 'completed') {
+                if (rr.error) {
+                    res.status(400).json({ error: "Error should not be set for completed job" });
+                    return;
+                }
+            }
+            else if (rr.status === 'failed') {
+                if (!rr.error) {
+                    res.status(400).json({ error: "Error must be set for failed job" });
+                    return;
+                }
+            }
+            await updateJob(rr.jobId, { status: rr.status, error: rr.error, timestampFinishedSec: Date.now() / 1000 })
+        }
+        else {
+            res.status(400).json({ error: "Invalid status" });
+            return;
+        }
+        const resp: CreateJobResponse = {
+            type: 'createJobResponse',
+            jobId: rr.jobId
+        };
+        res.status(200).json(resp);
     }
     catch (e) {
         console.error(e);
@@ -398,7 +516,7 @@ export const getSignedUploadUrlHandler = allowCors(async (req: VercelRequest, re
             res.status(400).json({ error: "Job does not have the specified upload url" });
             return;
         }
-        const signedUrl = await createSignedUploadUrl(rr.url);
+        const signedUrl = await createSignedUploadUrl({ url: rr.url, size: rr.size, userId: job.userId });
         const resp: GetSignedUploadUrlResponse = {
             type: 'getSignedUploadUrlResponse',
             signedUrl
@@ -783,6 +901,28 @@ const updateJob = async (jobId: string, update: any) => {
     });
 }
 
+const atomicUpdateJob = async (jobId: string, oldStatus: string, update: any) => {
+    const client = await getMongoClient();
+    const collection = client.db('pairio').collection('jobs');
+    // QUESTION: is this going to be atomic?
+    // Like if two requests come in at the same time, will one of them fail?
+    const result = await collection.updateOne({
+        jobId,
+        status: oldStatus
+    }, {
+        $set: update
+    });
+    if (result.modifiedCount !== 1) {
+        throw Error('Failed to update job');
+    }
+}
+
+const insertJob = async (job: PairioJob) => {
+    const client = await getMongoClient();
+    const collection = client.db('pairio').collection('jobs');
+    await collection.insertOne(job);
+}
+
 const insertComputeClient = async (computeClient: ComputeClient) => {
     const client = await getMongoClient();
     const collection = client.db('pairio').collection('computeClients');
@@ -833,9 +973,26 @@ const removeMongoId = (x: any) => {
     if ('_id' in x) delete x['_id'];
 }
 
-const getUserIdForGitHubAccessToken = async (gitHubAccessToken: string): Promise<string> => {
-    // todo
-    throw Error(`Not implemented: getUserIdForGitHubAccessToken ${gitHubAccessToken}`);
+const gitHubUserIdCache: { [accessToken: string]: string } = {};
+const getUserIdForGitHubAccessToken = async (gitHubAccessToken: string) => {
+    if (gitHubUserIdCache[gitHubAccessToken]) {
+        return gitHubUserIdCache[gitHubAccessToken];
+    }
+
+    const response = await fetch('https://api.github.com/user', {
+        headers: {
+            Authorization: `token ${gitHubAccessToken}`
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to get user id');
+    }
+
+    const data = await response.json();
+    const userId = 'github|' + data.login;
+    gitHubUserIdCache[gitHubAccessToken] = userId;
+    return userId;
 }
 
 const generateUserApiKey = () => {
@@ -867,7 +1024,47 @@ const generateComputeClientPrivateKey = () => {
     return generateRandomId(32);
 }
 
-const createSignedUploadUrl = async (url: string) => {
-    // todo
-    throw Error(`Not implemented: createSignedUploadUrl ${url}`);
+const createSignedUploadUrl = async (o: { url: string, size: number, userId: string }) => {
+    const { url, size, userId } = o;
+    const prefix = `https://tempory.net/f/pairio/`;
+    if (!url.startsWith(prefix)) {
+        throw Error('Invalid url. Does not have proper prefix');
+    }
+    const filePath = url.slice(prefix.length);
+    const temporyApiUrl = 'https://hub.tempory.net/api/uploadFile'
+    const response = await fetch(temporyApiUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${TEMPORY_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+            appName: "pairio",
+            filePath,
+            size,
+            userId
+        }),
+    });
+    if (!response.ok) {
+        throw Error('Failed to get signed url');
+    }
+    const result = await response.json();
+    const { uploadUrl, downloadUrl } = result;
+    if (downloadUrl !== url) {
+        throw Error('Mismatch between download url and url');
+    }
+    return uploadUrl;
+}
+
+const generateJobId = () => {
+    return generateRandomId(20);
+}
+
+const generateJobPrivateKey = () => {
+    return generateRandomId(32);
+}
+
+const createOutputFileUrl = async (a: { appName: string, processorName: string, jobId: string, outputName: string, outputFileBaseName: string }) => {
+    const { appName, processorName, jobId, outputName, outputFileBaseName } = a;
+    return `https://tempory.net/f/pairio/f/${appName}/${processorName}/${jobId}/${outputName}/${outputFileBaseName}`;
 }

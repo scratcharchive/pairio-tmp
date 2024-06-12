@@ -1,3 +1,3 @@
-import { deleteAppHandler } from "../apiHelpers/requestHandlers";
+import { deleteAppHandler } from "../apiHelpers/requestHandlers.js";
 
 export default deleteAppHandler;

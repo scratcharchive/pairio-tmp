@@ -1,3 +1,3 @@
-import { getJobHandler } from "../apiHelpers/requestHandlers";
+import { getJobHandler } from "../apiHelpers/requestHandlers.js";
 
 export default getJobHandler;
