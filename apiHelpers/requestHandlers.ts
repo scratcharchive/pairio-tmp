@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import allowCors from "./allowCors.js";
-import { getMongoClient } from "./getMongoClient.js";
-import { AddAppResponse, AddUserResponse, CancelJobResponse, ComputeClient, CreateComputeClientResponse, CreateJobResponse, DeleteAppResponse, DeleteComputeClientResponse, GetAppResponse, GetAppsResponse, GetComputeClientResponse, GetComputeClientsResponse, GetJobResponse, GetJobsResponse, GetSignedUploadUrlResponse, PairioApp, PairioJob, PairioUser, ResetUserApiKeyResponse, SetAppInfoResponse, SetUserInfoResponse, isAddAppRequest, isAddUserRequest, isCancelJobRequest, isComputeClient, isCreateComputeClientRequest, isCreateJobRequest, isDeleteAppRequest, isDeleteComputeClientRequest, isGetAppRequest, isGetAppsRequest, isGetComputeClientRequest, isGetComputeClientsRequest, isGetJobRequest, isGetJobsRequest, isGetSignedUploadUrlRequest, isPairioApp, isPairioJob, isPairioUser, isResetUserApiKeyRequest, isSetAppInfoRequest, isSetJobStatusRequest, isSetUserInfoRequest } from "./types.js";
+import allowCors from "./allowCors.js"; // remove .js for local dev
+import { getMongoClient } from "./getMongoClient.js"; // remove .js for local dev
+import { AddAppResponse, AddUserResponse, CancelJobResponse, ComputeClient, CreateComputeClientResponse, CreateJobResponse, DeleteAppResponse, DeleteComputeClientResponse, GetAppResponse, GetAppsResponse, GetComputeClientResponse, GetComputeClientsResponse, GetJobResponse, GetJobsResponse, GetSignedUploadUrlResponse, PairioApp, PairioJob, PairioUser, ResetUserApiKeyResponse, SetAppInfoResponse, SetUserInfoResponse, isAddAppRequest, isAddUserRequest, isCancelJobRequest, isComputeClient, isCreateComputeClientRequest, isCreateJobRequest, isDeleteAppRequest, isDeleteComputeClientRequest, isGetAppRequest, isGetAppsRequest, isGetComputeClientRequest, isGetComputeClientsRequest, isGetJobRequest, isGetJobsRequest, isGetSignedUploadUrlRequest, isPairioApp, isPairioJob, isPairioUser, isResetUserApiKeyRequest, isSetAppInfoRequest, isSetJobStatusRequest, isSetUserInfoRequest } from "./types.js"; // remove .js for local dev
 
 const TEMPORY_ACCESS_TOKEN = process.env.TEMPORY_ACCESS_TOKEN;
 if (!TEMPORY_ACCESS_TOKEN) {
@@ -21,8 +21,8 @@ export const addAppHandler = allowCors(async (req: VercelRequest, res: VercelRes
         return;
     }
     const app = rr.app;
-    const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!(await authenticateUser(app.userId, authorizationToken))) {
+    const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+    if (!(await authenticateGitHubUser(app.userId, gitHubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
@@ -51,12 +51,7 @@ export const addUserHandler = allowCors(async (req: VercelRequest, res: VercelRe
         return;
     }
     const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!githubAccessToken) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-    }
-    const githubUserId = await getUserIdForGitHubAccessToken(githubAccessToken);
-    if (rr.user.userId != `github|${githubUserId}`) {
+    if (!(await authenticateGitHubUser(rr.user.userId, githubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
@@ -90,12 +85,7 @@ export const resetUserApiKeyHandler = allowCors(async (req: VercelRequest, res: 
         return;
     }
     const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!githubAccessToken) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-    }
-    const githubUserId = await getUserIdForGitHubAccessToken(githubAccessToken);
-    if (rr.userId != `github|${githubUserId}`) {
+    if (!(await authenticateGitHubUser(rr.userId, githubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
@@ -132,12 +122,7 @@ export const setUserInfoHandler = allowCors(async (req: VercelRequest, res: Verc
         return;
     }
     const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!githubAccessToken) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
-    }
-    const githubUserId = await getUserIdForGitHubAccessToken(githubAccessToken);
-    if (rr.userId != `github|${githubUserId}`) {
+    if (!(await authenticateGitHubUser(rr.userId, githubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
@@ -546,8 +531,8 @@ export const deleteComputeClientHandler = allowCors(async (req: VercelRequest, r
             res.status(404).json({ error: "Compute client not found" });
             return;
         }
-        const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-        if (!(await authenticateUser(computeClient.userId, authorizationToken))) {
+        const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateGitHubUser(computeClient.userId, gitHubAccessToken))) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
@@ -575,8 +560,8 @@ export const createComputeClientHandler = allowCors(async (req: VercelRequest, r
         return;
     }
     const computeClient = rr.computeClient;
-    const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!(await authenticateUser(computeClient.userId, authorizationToken))) {
+    const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+    if (!(await authenticateGitHubUser(computeClient.userId, gitHubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
@@ -675,25 +660,22 @@ export const setAppInfoHandler = allowCors(async (req: VercelRequest, res: Verce
         return;
     }
     try {
-        const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-        if (!githubAccessToken) {
-            res.status(401).json({ error: "Unauthorized" });
-            return;
-        }
-        const githubUserId = await getUserIdForGitHubAccessToken(githubAccessToken);
         const app = await fetchApp(rr.appName);
         if (!app) {
             res.status(404).json({ error: "App not found" });
             return;
         }
-        if (app.userId !== `github|${githubUserId}`) {
+        const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateGitHubUser(app.userId, githubAccessToken))) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
         const update: { [key: string]: any } = {};
         if (rr.description !== undefined) update['description'] = rr.description;
+        if (rr.sourceUri !== undefined) update['sourceUri'] = rr.sourceUri;
         if (rr.jobCreateUsers !== undefined) update['jobCreateUsers'] = rr.jobCreateUsers;
         if (rr.jobProcessUsers !== undefined) update['jobProcessUsers'] = rr.jobProcessUsers;
+        if (rr.processors !== undefined) update['processors'] = rr.processors;
         await updateApp(rr.appName, update);
         const resp: SetAppInfoResponse = {
             type: 'setAppInfoResponse'
@@ -752,8 +734,8 @@ export const deleteAppHandler = allowCors(async (req: VercelRequest, res: Vercel
             res.status(404).json({ error: "App not found" });
             return;
         }
-        const authorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-        if (!(await authenticateUser(app.userId, authorizationToken))) {
+        const gitHubAuthorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateGitHubUser(app.userId, gitHubAuthorizationToken))) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
@@ -776,6 +758,7 @@ export const getAppsHandler = allowCors(async (req: VercelRequest, res: VercelRe
         return;
     }
     const rr = req.body;
+    console.log('---- rr', rr)
     if (!isGetAppsRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
@@ -805,6 +788,12 @@ const authenticateUser = async (userId: string, authorizationToken: string | und
     if (!user) return false;
     if (user.apiKey !== authorizationToken) return false;
     return true;
+}
+
+const authenticateGitHubUser = async (userId: string, gitHubAccessToken: string | undefined): Promise<boolean> => {
+    if (!gitHubAccessToken) return false;
+    const githubUserId = await getUserIdForGitHubAccessToken(gitHubAccessToken);
+    return userId === `github|${githubUserId}`;
 }
 
 const fetchUser = async (userId: string) => {
@@ -990,7 +979,7 @@ const getUserIdForGitHubAccessToken = async (gitHubAccessToken: string) => {
     }
 
     const data = await response.json();
-    const userId = 'github|' + data.login;
+    const userId = data.login;
     gitHubUserIdCache[gitHubAccessToken] = userId;
     return userId;
 }

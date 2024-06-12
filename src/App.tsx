@@ -1,9 +1,11 @@
 import './App.css'
 import { BrowserRouter } from 'react-router-dom'
-import HomePage from './HomePage'
+import HomePage from './pages/HomePage/HomePage'
 import LogInPage from './LogInPage'
 import useRoute from './useRoute'
 import { useEffect } from 'react'
+import AppsPage from './pages/AppsPage/AppsPage'
+import AppPage from './pages/AppPage/AppPage'
 // import useRoute from './useRoute'
 
 function App() {
@@ -16,9 +18,14 @@ function App() {
 
 function MainWindow() {
   const { route } = useRoute()
-  console.log('---- x', route)
   if (route.page === 'home') {
     return <HomePage />
+  }
+  else if (route.page === 'apps') {
+    return <AppsPage />
+  }
+  else if (route.page === 'app') {
+    return <AppPage />
   }
   else if (route.page === 'logIn') {
     return <LogInPage />

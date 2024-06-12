@@ -1,3 +1,3 @@
-import { getComputeClientsHandler } from "../apiHelpers/requestHandlers.js";
+import { getComputeClientsHandler } from "../apiHelpers/requestHandlers.js"; // remove .js for local dev
 
 export default getComputeClientsHandler;

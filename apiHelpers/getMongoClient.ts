@@ -9,7 +9,7 @@ export const getMongoClient = async (): Promise<MongoClient> => {
     }
     if (client) return client
     const MONGO_URI = process.env['MONGO_URI']
-    if (!MONGO_URI) throw Error(`Environtment variable not set: MONGO_URI`)
+    if (!MONGO_URI) throw Error(`Environment variable not set: MONGO_URI`)
     connecting = true
     // const C = new MongoClient(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
     const C = new MongoClient(MONGO_URI);
