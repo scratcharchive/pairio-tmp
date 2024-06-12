@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AddAppRequest, DeleteAppRequest, GetAppRequest, GetAppsRequest, PairioApp, SetAppInfoRequest, isAddAppResponse, isGetAppResponse, isGetAppsResponse, isSetAppInfoResponse } from "./types";
+import { AddAppRequest, ComputeClient, ComputeClientComputeSlot, CreateComputeClientRequest, DeleteAppRequest, DeleteComputeClientRequest, GetAppRequest, GetAppsRequest, GetComputeClientRequest, GetComputeClientsRequest, PairioApp, SetAppInfoRequest, isAddAppResponse, isCreateComputeClientResponse, isGetAppResponse, isGetAppsResponse, isGetComputeClientResponse, isGetComputeClientsResponse, isSetAppInfoResponse } from "./types";
 import useGitHubAccessToken from "./useGitHubAccessToken";
 
 const apiUrl = 'https://pairio.vercel.app'
@@ -115,6 +115,119 @@ export const useApp = (appName: string) => {
     }), [appName, accessToken, refreshApp])
 
     return { app, deleteApp, setAppInfo, refreshApp }
+}
+
+export const useComputeClients = () => {
+    const { accessToken, userId } = useGitHubAccessToken()
+    const [computeClients, setComputeClients] = useState<ComputeClient[] | undefined>(undefined)
+    const [refreshCode, setRefreshCode] = useState(0)
+    const refreshComputeClients = useCallback(() => {
+        setRefreshCode(c => c + 1)
+    }, [])
+    useEffect(() => {
+        let canceled = false
+        setComputeClients(undefined);
+        (async () => {
+            const req: GetComputeClientsRequest = {
+                type: 'getComputeClientsRequest',
+                userId
+            }
+            const resp = await apiPostRequest('getComputeClients', req, accessToken)
+            if (canceled) return
+            if (!isGetComputeClientsResponse(resp)) {
+                console.error('Invalid response', resp)
+                return
+            }
+            setComputeClients(resp.computeClients)
+        })()
+        return () => { canceled = true }
+    }, [accessToken, refreshCode, userId])
+
+    const createComputeClient = useMemo(() => (async (label: string) => {
+        if (!userId) return
+        const computeSlot: ComputeClientComputeSlot = {
+            computeSlotId: '', // will be generated
+            numCpus: 4,
+            numGpus: 0,
+            memoryGb: 8,
+            timeSec: 3600,
+            minNumCpus: 0,
+            minNumGpus: 0,
+            minMemoryGb: 0,
+            minTimeSec: 0,
+            multiplicity: 1
+        }
+        const computeClient: ComputeClient = {
+            computeClientId: '', // will be generated
+            computeClientPrivateKey: null, // will be generated
+            userId,
+            label,
+            description: '',
+            appsToProcess: [],
+            computeSlots: [computeSlot]
+        }
+        const req: CreateComputeClientRequest = {
+            type: 'createComputeClientRequest',
+            computeClient
+        }
+        const resp = await apiPostRequest('createComputeClient', req, accessToken)
+        if (!isCreateComputeClientResponse(resp)) {
+            console.error('Invalid response', resp)
+            return
+        }
+        refreshComputeClients()
+        return { computeClientId: resp.computeClientId, computeClientPrivateKey: resp.computeClientPrivateKey }
+    }), [userId, accessToken, refreshComputeClients])
+
+    return {
+        computeClients,
+        createComputeClient,
+        refreshComputeClients
+    }
+}
+
+export const useComputeClient = (computeClientId: string) => {
+    const { accessToken } = useGitHubAccessToken()
+    const [computeClient, setComputeClient] = useState<ComputeClient | undefined>(undefined)
+    const [refreshCode, setRefreshCode] = useState(0)
+    const refreshComputeClient = useCallback(() => {
+        setRefreshCode(c => c + 1)
+    }, [])
+    useEffect(() => {
+        let canceled = false
+        setComputeClient(undefined)
+        if (!accessToken) return
+        (async () => {
+            const req: GetComputeClientRequest = {
+                type: 'getComputeClientRequest',
+                computeClientId
+            }
+            const resp = await apiPostRequest('getComputeClient', req, accessToken)
+            if (canceled) return
+            if (!isGetComputeClientResponse(resp)) {
+                console.error('Invalid response', resp)
+                return
+            }
+            setComputeClient(resp.computeClient)
+        })()
+        return () => { canceled = true }
+    }, [computeClientId, accessToken, refreshCode])
+
+    const deleteComputeClient = useCallback(async () => {
+        if (!accessToken) return
+        const req: DeleteComputeClientRequest = {
+            type: 'deleteComputeClientRequest',
+            computeClientId
+        }
+        const resp = await apiPostRequest('deleteComputeClient', req, accessToken)
+        if (!isGetComputeClientResponse(resp)) {
+            console.error('Invalid response', resp)
+            return
+        }
+        setComputeClient(undefined)
+    }, [computeClientId, accessToken])
+
+    return { computeClient, deleteComputeClient, refreshComputeClient }
 }
 
 const apiPostRequest = async (path: string, req: any, accessToken?: string) => {

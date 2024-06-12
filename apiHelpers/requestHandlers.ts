@@ -570,6 +570,12 @@ export const createComputeClientHandler = allowCors(async (req: VercelRequest, r
         const computeClientPrivateKey = generateComputeClientPrivateKey();
         computeClient.computeClientId = computeClientId;
         computeClient.computeClientPrivateKey = computeClientPrivateKey;
+        for (const slot of computeClient.computeSlots) {
+            if (slot.computeSlotId) {
+                throw Error('computeSlotId should not be set');
+            }
+            slot.computeSlotId = generateComputeSlotId();
+        }
         await insertComputeClient(computeClient);
         const resp: CreateComputeClientResponse = {
             type: 'createComputeClientResponse',
@@ -1051,6 +1057,10 @@ const generateJobId = () => {
 
 const generateJobPrivateKey = () => {
     return generateRandomId(32);
+}
+
+const generateComputeSlotId = () => {
+    return generateRandomId(12);
 }
 
 const createOutputFileUrl = async (a: { appName: string, processorName: string, jobId: string, outputName: string, outputFileBaseName: string }) => {

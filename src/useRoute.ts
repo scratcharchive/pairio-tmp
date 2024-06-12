@@ -9,6 +9,11 @@ export type Route = {
     page: 'app'
     appName: string
 } | {
+    page: 'compute_clients'
+} | {
+    page: 'compute_client'
+    computeClientId: string
+} | {
     page: 'set_access_token'
     accessToken: string
 } | {
@@ -33,6 +38,18 @@ const useRoute = () => {
             return {
                 page: 'app',
                 appName
+            }
+        }
+        else if (p === '/compute_clients') {
+            return {
+                page: 'compute_clients'
+            }
+        }
+        else if (p.startsWith('/compute_client/')) {
+            const computeClientId = p.slice('/compute_client/'.length)
+            return {
+                page: 'compute_client',
+                computeClientId
             }
         }
         else if (p === '/set_access_token') {
@@ -66,6 +83,12 @@ const useRoute = () => {
         }
         else if (r.page === 'app') {
             navigate(`/app/${r.appName}`)
+        }
+        else if (r.page === 'compute_clients') {
+            navigate('/compute_clients')
+        }
+        else if (r.page === 'compute_client') {
+            navigate(`/compute_client/${r.computeClientId}`)
         }
         else if (r.page === 'set_access_token') {
             navigate(`/set_access_token?access_token=${r.accessToken}`)

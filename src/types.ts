@@ -258,7 +258,7 @@ export type ComputeClient = {
   computeClientId: string
   computeClientPrivateKey: string | null
   userId: string
-  name: string
+  label: string
   description: string
   appsToProcess: string[]
   computeSlots: ComputeClientComputeSlot[]
@@ -269,7 +269,7 @@ export const isComputeClient = (x: any): x is ComputeClient => {
     computeClientId: isString,
     computeClientPrivateKey: isOneOf([isString, isNull]),
     userId: isString,
-    name: isString,
+    label: isString,
     description: isString,
     appsToProcess: isArrayOf(isString),
     computeSlots: isArrayOf(isComputeClientComputeSlot)

@@ -23,6 +23,10 @@ const HomePage: FunctionComponent<Props> = () => {
             <Hyperlink onClick={() => {
               setRoute({page: 'apps'})
             }}>Apps</Hyperlink>
+            &nbsp;
+            <Hyperlink onClick={() => {
+              setRoute({page: 'compute_clients'})
+            }}>Compute clients</Hyperlink>
           </div>
         </div>
       )}

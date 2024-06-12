@@ -6,6 +6,8 @@ import useRoute from './useRoute'
 import { useEffect } from 'react'
 import AppsPage from './pages/AppsPage/AppsPage'
 import AppPage from './pages/AppPage/AppPage'
+import ComputeClientsPage from './pages/ComputeClientsPage/ComputeClientsPage'
+import ComputeClientPage from './pages/ComputeClientPage/ComputeClientPage'
 // import useRoute from './useRoute'
 
 function App() {
@@ -26,6 +28,12 @@ function MainWindow() {
   }
   else if (route.page === 'app') {
     return <AppPage />
+  }
+  else if (route.page === 'compute_clients') {
+    return <ComputeClientsPage />
+  }
+  else if (route.page === 'compute_client') {
+    return <ComputeClientPage />
   }
   else if (route.page === 'logIn') {
     return <LogInPage />
