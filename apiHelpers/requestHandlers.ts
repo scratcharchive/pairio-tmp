@@ -2,7 +2,7 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import allowCors from "./allowCors.js"; // remove .js for local dev
 import { getMongoClient } from "./getMongoClient.js"; // remove .js for local dev
-import { AddServiceAppResponse, AddUserResponse, CancelJobResponse, CreateJobResponse, CreateServiceComputeClientResponse, DeleteServiceAppResponse, DeleteServiceComputeClientResponse, GetJobResponse, GetJobsResponse, GetServiceAppResponse, GetServiceAppsResponse, GetServiceComputeClientResponse, GetServiceComputeClientsResponse, GetSignedUploadUrlResponse, PairioJob, PairioService, PairioServiceApp, PairioServiceComputeClient, PairioUser, ResetUserApiKeyResponse, SetServiceAppInfoResponse, SetUserInfoResponse, isAddServiceAppRequest, isAddUserRequest, isCancelJobRequest, isCreateJobRequest, isCreateServiceComputeClientRequest, isDeleteServiceAppRequest, isDeleteServiceComputeClientRequest, isGetJobRequest, isGetJobsRequest, isGetServiceAppRequest, isGetServiceAppsRequest, isGetServiceComputeClientRequest, isGetServiceComputeClientsRequest, isGetSignedUploadUrlRequest, isPairioJob, isPairioService, isPairioServiceApp, isPairioServiceComputeClient, isPairioUser, isResetUserApiKeyRequest, isSetJobStatusRequest, isSetServiceAppInfoRequest, isSetUserInfoRequest } from "./types.js"; // remove .js for local dev
+import { AddServiceAppResponse, AddServiceResponse, AddUserResponse, CancelJobResponse, CreateJobResponse, CreateServiceComputeClientResponse, DeleteServiceAppResponse, DeleteServiceComputeClientResponse, DeleteServiceResponse, GetJobResponse, GetJobsResponse, GetServiceAppResponse, GetServiceAppsResponse, GetServiceComputeClientResponse, GetServiceComputeClientsResponse, GetServiceResponse, GetServicesResponse, GetSignedUploadUrlResponse, PairioJob, PairioJobDefinition, PairioService, PairioServiceApp, PairioServiceComputeClient, PairioUser, ResetUserApiKeyResponse, SetServiceAppInfoResponse, SetServiceInfoResponse, SetUserInfoResponse, isAddServiceAppRequest, isAddServiceRequest, isAddUserRequest, isCancelJobRequest, isCreateJobRequest, isCreateServiceComputeClientRequest, isDeleteServiceAppRequest, isDeleteServiceComputeClientRequest, isDeleteServiceRequest, isGetJobRequest, isGetJobsRequest, isGetServiceAppRequest, isGetServiceAppsRequest, isGetServiceComputeClientRequest, isGetServiceComputeClientsRequest, isGetServiceRequest, isGetServicesRequest, isGetSignedUploadUrlRequest, isPairioJob, isPairioService, isPairioServiceApp, isPairioServiceComputeClient, isPairioUser, isResetUserApiKeyRequest, isSetJobStatusRequest, isSetServiceAppInfoRequest, isSetServiceInfoRequest, isSetUserInfoRequest } from "./types.js"; // remove .js for local dev
 
 const TEMPORY_ACCESS_TOKEN = process.env.TEMPORY_ACCESS_TOKEN;
 if (!TEMPORY_ACCESS_TOKEN) {
@@ -18,6 +18,175 @@ const collectionNames = {
     serviceComputeClients: 'serviceComputeClients',
     jobs: 'jobs'
 };
+
+// addService handler
+export const addServiceHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+    if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+    }
+    const rr = req.body;
+    if (!isAddServiceRequest(rr)) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    const { serviceName, userId } = rr;
+    try {
+        const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateGitHubUser(userId, gitHubAccessToken))) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        const service = await fetchService(serviceName);
+        if (service) {
+            res.status(500).json({ error: "Service with this name already exists." })
+            return;
+        }
+        const newService: PairioService = {
+            serviceName,
+            userId,
+            users: []
+        };
+        await insertService(newService);
+        const resp: AddServiceResponse = {
+            type: 'addServiceResponse'
+        };
+        res.status(200).json(resp);
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+})
+
+// getService handler
+export const getServiceHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+    if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+    }
+    const rr = req.body;
+    if (!isGetServiceRequest(rr)) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    try {
+        const service = await fetchService(rr.serviceName);
+        if (!service) {
+            res.status(404).json({ error: "Service not found" });
+            return;
+        }
+        const resp: GetServiceResponse = {
+            type: 'getServiceResponse',
+            service
+        };
+        res.status(200).json(resp);
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+})
+
+// getServices handler
+export const getServicesHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+    if (req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+    }
+    try {
+        const rr = req.body;
+        if (!isGetServicesRequest(rr)) {
+            res.status(400).json({ error: "Invalid request" });
+            return;
+        }
+        const { userId } = rr;
+        if (!userId) {
+            res.status(400).json({ error: "userId must be provided" });
+            return;
+        }
+        const services = await fetchServicesForUser(userId);
+        const resp: GetServicesResponse = {
+            type: 'getServicesResponse',
+            services
+        };
+        res.status(200).json(resp);
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+})
+
+// deleteService handler
+export const deleteServiceHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+    const rr = req.body;
+    if (!isDeleteServiceRequest(rr)) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    try {
+        const service = await fetchService(rr.serviceName);
+        if (!service) {
+            res.status(404).json({ error: "Service not found" });
+            return;
+        }
+        const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateGitHubUser(service.userId, gitHubAccessToken))) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        await deleteService(rr.serviceName);
+        const resp: DeleteServiceResponse = {
+            type: 'deleteServiceResponse'
+        };
+        res.status(200).json(resp);
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+})
+
+// setServiceInfo handler
+export const setServiceInfoHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+    const rr = req.body;
+    if (!isSetServiceInfoRequest(rr)) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    try {
+        const service = await fetchService(rr.serviceName);
+        if (!service) {
+            res.status(404).json({ error: "Service not found" });
+            return;
+        }
+        const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!gitHubAccessToken) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        const userId = await getUserIdForGitHubAccessToken(gitHubAccessToken);
+        if (!userId) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        if (!userIsAdminForService(service, userId)) {
+            res.status(401).json({ error: "User is not authorized to modify this service." })
+        }
+        const update: { [key: string]: any } = {};
+        if (rr.users !== undefined) update['users'] = rr.users;
+        await updateService(rr.serviceName, update);
+        const resp: SetServiceInfoResponse = {
+            type: 'setServiceInfoResponse'
+        };
+        res.status(200).json(resp);
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+})
 
 // addServiceApp handler
 export const addServiceAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
@@ -67,17 +236,23 @@ export const addUserHandler = allowCors(async (req: VercelRequest, res: VercelRe
         return;
     }
     const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!(await authenticateGitHubUser(rr.user.userId, githubAccessToken))) {
+    if (!(await authenticateGitHubUser(rr.userId, githubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
-    const user = await fetchUser(rr.user.userId);
+    const user = await fetchUser(rr.userId);
     if (user !== null) {
         res.status(400).json({ error: "User already exists" });
         return;
     }
     try {
-        await insertUser(rr.user);
+        const user: PairioUser = {
+            userId: rr.userId,
+            name: '',
+            email: '',
+            apiKey: null
+        }
+        await insertUser(user);
         const resp: AddUserResponse = {
             type: 'addUserResponse'
         };
@@ -175,14 +350,25 @@ export const createJobHandler = allowCors(async (req: VercelRequest, res: Vercel
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
+        const service = await fetchService(rr.serviceName);
+        if (!service) {
+            res.status(404).json({ error: "Service not found" });
+            return;
+        }
+        if (!userIsAllowedToCreateJobsForService(service, rr.userId)) {
+            res.status(401).json({ error: "This user is not allowed to create jobs for this service" });
+            return;
+        }
         const app = await fetchServiceApp(rr.serviceName, rr.jobDefinition.appName)
         if (!app) {
             res.status(404).json({ error: "Service app not found" });
             return;
         }
-        // todo
-        if ((!app.jobCreateUsers.includes(rr.userId)) && (!app.jobCreateUsers.includes('*'))) {
-            res.status(401).json({ error: "This user is not allowed to create jobs for this app" });
+        try {
+            validateJobDefinitionForServiceApp(rr.jobDefinition, app)
+        }
+        catch(err) {
+            res.status(400).json({ error: `Job definition is not compatible with app: ${err.message}` });
             return;
         }
 
@@ -214,6 +400,7 @@ export const createJobHandler = allowCors(async (req: VercelRequest, res: Vercel
             consoleOutputUrl,
             resourceUtilizationLogUrl,
             timestampCreatedSec: Date.now() / 1000,
+            timestampStartingSec: null,
             timestampStartedSec: null,
             timestampFinishedSec: null,
             canceled: false,
@@ -293,9 +480,10 @@ export const getJobsHandler = allowCors(async (req: VercelRequest, res: VercelRe
         if (rr.outputFileUrl) query['outputFileUrls'] = rr.outputFileUrl;
         if (rr.status) query['status'] = rr.status;
         const jobs = await fetchJobs(query);
-        // hide the private keys for the jobs
+        // hide the private keys and secrets for the jobs
         for (const job of jobs) {
             job.jobPrivateKey = null;
+            job.secrets = null;
         }
         const resp: GetJobsResponse = {
             type: 'getJobsResponse',
@@ -345,6 +533,8 @@ export const getJobHandler = allowCors(async (req: VercelRequest, res: VercelRes
         else {
             job.jobPrivateKey = null;
         }
+        // always hide the secrets
+        job.secrets = null;
         const resp: GetJobResponse = {
             type: 'getJobResponse',
             job
@@ -414,46 +604,59 @@ export const setJobStatusHandler = allowCors(async (req: VercelRequest, res: Ver
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
-        const jobs = await fetchJobs({ jobId: rr.jobId });
-        if (jobs.length === 0) {
+        const job = await fetchJob(rr.jobId);
+        if (!job) {
             res.status(404).json({ error: "Job not found" });
             return;
         }
-        const job = jobs[0]
         const computeClient = await fetchServiceComputeClient(computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
         }
         const computeClientUserId = computeClient.userId;
-        const app = await fetchServiceApp(job.serviceName, job.jobDefinition.appName);
-        if (!app) {
-            res.status(404).json({ error: "App not found" });
-            return;
+        if (job.computeClientId) {
+            if (job.computeClientId !== computeClientId) {
+                res.status(401).json({ error: "Mismatch between computeClientId in request and job" });
+                return;
+            }
         }
-        // todo
-        if (!app.jobProcessUsers.includes(computeClientUserId)) {
-            res.status(401).json({ error: "This compute client is not allowed to process jobs for this app" });
-            return;
+        else {
+            if (job.status !== 'pending') {
+                res.status(400).json({ error: "Job is not in pending status and the compute client is not set" });
+                return;
+            }
+            if (rr.status !== 'starting') {
+                res.status(400).json({ error: "Trying to set job to a status other than starting when compute client is not set" });
+                return;
+            }
         }
-        if (rr.status === 'running') {
+        if (rr.status === 'starting') {
             if (job.status !== 'pending') {
                 res.status(400).json({ error: "Job is not in pending status" });
                 return;
             }
-            if (job.computeClientId) {
-                res.status(400).json({ error: "Job already has a compute client" });
+            const service = await fetchService(job.serviceName);
+            if (!service) {
+                res.status(404).json({ error: "Service not found" });
                 return;
             }
-            await atomicUpdateJob(rr.jobId, 'pending', { status: 'running', computeClientId, timestampStartedSec: Date.now() / 1000 });
+            if (!userIsAllowedToProcessJobsForService(service, computeClientUserId)) {
+                res.status(401).json({ error: "This compute client is not allowed to process jobs for this service" });
+                return;
+            }
+            await atomicUpdateJob(rr.jobId, 'pending', { status: 'starting', computeClientId, timestampStartingSec: Date.now() / 1000 });
+        }
+        else if (rr.status === 'running') {
+            if (job.status !== 'starting') {
+                res.status(400).json({ error: "Job is not in pending status" });
+                return;
+            }
+            await atomicUpdateJob(rr.jobId, 'starting', { status: 'running', computeClientId, timestampStartedSec: Date.now() / 1000 });
         }
         else if (rr.status === 'completed' || rr.status === 'failed') {
             if (job.status !== 'running') {
                 res.status(400).json({ error: "Job is not in running status" });
-                return;
-            }
-            if (job.computeClientId !== computeClientId) {
-                res.status(401).json({ error: "Mismatch between computeClientId in request and job" });
                 return;
             }
             if (rr.status === 'completed') {
@@ -867,6 +1070,38 @@ const fetchService = async (serviceName: string): Promise<PairioService | null> 
     return service;
 }
 
+const fetchServicesForUser = async (userId: string): Promise<PairioService[]> => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.services);
+    const services = await collection.find({ userId }).toArray();
+    for (const service of services) {
+        removeMongoId(service);
+        if (!isPairioService(service)) {
+            throw Error('Invalid service in database');
+        }
+    }
+    return services.map((service: any) => service as PairioService);
+}
+
+const insertService = async (service: PairioService) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.services);
+    await collection.updateOne({ serviceName: service.serviceName }, { $setOnInsert: service }, { upsert: true });
+}
+
+const deleteService = async (serviceName: string) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.services);
+    await collection.deleteOne({ serviceName });
+}
+
+const updateService = async (serviceName: string, update: any) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.services);
+    await collection
+        .updateOne({ serviceName }, { $set: update });
+}
+
 const fetchUser = async (userId: string) => {
     const client = await getMongoClient();
     const collection = client.db(dbName).collection(collectionNames.users);
@@ -882,7 +1117,7 @@ const fetchUser = async (userId: string) => {
 const insertUser = async (user: PairioUser) => {
     const client = await getMongoClient();
     const collection = client.db(dbName).collection(collectionNames.users);
-    await collection.insertOne(user);
+    await collection.updateOne({ userId: user.userId }, { $setOnInsert: user }, { upsert: true });
 }
 
 const updateUser = async (userId: string, update: any) => {
@@ -947,6 +1182,18 @@ const deleteServiceApp = async (serviceName: string, appName: string) => {
     const client = await getMongoClient();
     const collection = client.db(dbName).collection(collectionNames.serviceApps);
     await collection.deleteOne({ serviceName, appName });
+}
+
+const fetchJob = async (jobId: string) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.jobs);
+    const job = await collection.findOne({ jobId });
+    if (!job) return null;
+    removeMongoId(job);
+    if (!isPairioJob(job)) {
+        throw Error('Invalid job in database');
+    }
+    return job;
 }
 
 const fetchJobs = async (query: { [key: string]: any }) => {
@@ -1140,6 +1387,84 @@ const createSignedUploadUrl = async (o: { url: string, size: number, userId: str
         throw Error('Mismatch between download url and url');
     }
     return uploadUrl;
+}
+
+const userIsAllowedToProcessJobsForService = (service: PairioService, userId: string) => {
+    if (service.userId === userId) return true;
+    const u = service.users.find(u => u.userId === userId);
+    if (!u) return false;
+    return u.processJobs;
+}
+
+const userIsAllowedToCreateJobsForService = (service: PairioService, userId: string) => {
+    if (service.userId === userId) return true;
+    const u = service.users.find(u => u.userId === userId);
+    if (!u) return false;
+    return u.createJobs;
+}
+
+const userIsAdminForService = (service: PairioService, userId: string) => {
+    if (service.userId === userId) return true;
+    const u = service.users.find(u => u.userId === userId);
+    if (!u) return false;
+    return u.admin;
+}
+
+const validateJobDefinitionForServiceApp = (jobDefinition: PairioJobDefinition, app: PairioServiceApp) => {
+    if (jobDefinition.appName !== app.appName) {
+        throw Error('Mismatch between jobDefinition.appName and app.appName');
+    }
+    if (jobDefinition.appName !== app.appSpecification.name) {
+        throw Error('Mismatch between jobDefinition.appName and app.appSpecification.name');
+    }
+    const processor = app.appSpecification.processors.find(p => p.name === jobDefinition.processorName);
+    if (!processor) {
+        throw Error(`Processor not found in app: ${jobDefinition.processorName}`);
+    }
+    for (const input of processor.inputs) {
+        const jobInput = jobDefinition.inputFiles.find(i => i.name === input.name);
+        if (!jobInput) {
+            // todo: check if input is required
+            throw Error(`Required input not found in job definition: ${input.name}`);
+        }
+    }
+    for (const input of jobDefinition.inputFiles) {
+        const specInput = processor.inputs.find(i => i.name === input.name);
+        if (!specInput) {
+            throw Error(`Input not found in app specification: ${input.name}`);
+        }
+    }
+    for (const output of processor.outputs) {
+        const jobOutput = jobDefinition.outputFiles.find(i => i.name === output.name);
+        if (!jobOutput) {
+            // todo: check if output is required
+            throw Error(`Required output not found in job definition: ${output.name}`);
+        }
+    }
+    for (const output of jobDefinition.outputFiles) {
+        const specOutput = processor.outputs.find(i => i.name === output.name);
+        if (!specOutput) {
+            throw Error(`Output not found in app specification: ${output.name}`);
+        }
+    }
+    for (const param of processor.parameters) {
+        const jobParam = jobDefinition.parameters.find(i => i.name === param.name);
+        if (!jobParam) {
+            if (param.defaultValue === undefined) {
+                throw Error(`Required parameter not found in job definition: ${param.name}`);
+            }
+        }
+        else {
+            // todo: check the type
+            // jobParam.value should be compatible with param.type
+        }
+    }
+    for (const param of jobDefinition.parameters) {
+        const specParam = processor.parameters.find(i => i.name === param.name);
+        if (!specParam) {
+            throw Error(`Parameter not found in app specification: ${param.name}`);
+        }
+    }
 }
 
 const generateJobId = () => {

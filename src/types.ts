@@ -233,6 +233,7 @@ export type PairioJob = {
   consoleOutputUrl: string
   resourceUtilizationLogUrl: string
   timestampCreatedSec: number
+  timestampStartingSec: number | null
   timestampStartedSec: number | null
   timestampFinishedSec: number | null
   canceled: boolean
@@ -260,6 +261,7 @@ export const isPairioJob = (x: any): x is PairioJob => {
     consoleOutputUrl: isString,
     resourceUtilizationLogUrl: isString,
     timestampCreatedSec: isNumber,
+    timestampStartingSec: isOneOf([isNumber, isNull]),
     timestampStartedSec: isOneOf([isNumber, isNull]),
     timestampFinishedSec: isOneOf([isNumber, isNull]),
     canceled: isBoolean,
