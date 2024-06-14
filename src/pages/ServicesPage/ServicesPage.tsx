@@ -2,43 +2,33 @@
 import { Hyperlink, SmallIconButton } from "@fi-sci/misc";
 import { Add } from "@mui/icons-material";
 import { FunctionComponent, useCallback } from "react";
-import { useApps } from "../../hooks";
-import { PairioApp } from "../../types";
+import { useServices } from "../../hooks";
 import useGitHubAccessToken from "../../useGitHubAccessToken";
-import AppsTable from "./AppsTable";
 import useRoute from "../../useRoute";
+import ServicesTable from "./ServicesTable";
 
-type AppsPageProps = {
+type ServicesPageProps = {
     // none
 }
 
-const AppsPage: FunctionComponent<AppsPageProps> = () => {
+const ServicesPage: FunctionComponent<ServicesPageProps> = () => {
     const { userId } = useGitHubAccessToken();
-    const { apps, addApp } = useApps()
+    const { services, addService } = useServices()
     const { setRoute } = useRoute()
 
-    const handleAddApp = useCallback(async () => {
+    const handleAddService = useCallback(async () => {
         if (!userId) return
-        const appName = prompt('Enter app name')
-        if (!appName) return
-        const app: PairioApp = {
-            userId,
-            appName,
-            description: '',
-            sourceUri: '',
-            processors: [],
-            jobCreateUsers: [userId],
-            jobProcessUsers: [userId]
-        }
-        await addApp(app)
-    }, [userId, addApp])
+        const serviceName = prompt('Enter service name')
+        if (!serviceName) return
+        await addService(serviceName)
+    }, [userId, addService])
 
     if (!userId) return (
         <div style={{ padding: 20 }}>
             <h3>Not logged in</h3>
         </div>
     )
-    if (!apps) return (
+    if (!services) return (
         <div style={{ padding: 20 }}>
             <h3>Loading...</h3>
         </div>
@@ -55,16 +45,16 @@ const AppsPage: FunctionComponent<AppsPageProps> = () => {
             <hr />
             <div>
                 <SmallIconButton
-                    onClick={handleAddApp}
+                    onClick={handleAddService}
                     icon={<Add />}
-                    label="Add app"
+                    label="Add service"
                 />
             </div>
-            <AppsTable
-                apps={apps}
+            <ServicesTable
+                services={services}
             />
         </div>
     );
 }
 
-export default AppsPage
+export default ServicesPage

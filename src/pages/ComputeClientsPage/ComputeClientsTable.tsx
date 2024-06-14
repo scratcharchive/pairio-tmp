@@ -1,10 +1,10 @@
 import { Hyperlink } from "@fi-sci/misc";
 import { FunctionComponent } from "react";
-import { ComputeClient } from "../../types";
+import { PairioServiceComputeClient } from "../../types";
 import useRoute from "../../useRoute";
 
 type ComputeClientsTableProps = {
-    computeClients: ComputeClient[]
+    computeClients: PairioServiceComputeClient[]
 }
 
 const ComputeClientsTable: FunctionComponent<ComputeClientsTableProps> = ({ computeClients }) => {

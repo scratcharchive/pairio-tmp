@@ -5,18 +5,19 @@ import { isArrayOf, isBoolean, isEqualTo, isNull, isNumber, isOneOf, isString, o
 export type PairioService = {
   serviceName: string
   userId: string
+  users: PairioServiceUser[]
 }
 
 export const isPairioService = (x: any): x is PairioService => {
   return validateObject(x, {
     serviceName: isString,
-    userId: isString
+    userId: isString,
+    users: isArrayOf(isPairioServiceUser)
   })
 }
 
 // PairioServiceUser
 export type PairioServiceUser = {
-  serviceName: string
   userId: string
   admin: boolean
   createJobs: boolean
@@ -25,7 +26,6 @@ export type PairioServiceUser = {
 
 export const isPairioServiceUser = (x: any): x is PairioServiceUser => {
   return validateObject(x, {
-    serviceName: isString,
     userId: isString,
     admin: isBoolean,
     createJobs: isBoolean,
@@ -372,13 +372,13 @@ export const isPairioUser = (x: any): x is PairioUser => {
 // addUser
 export type AddUserRequest = {
   type: 'addUserRequest'
-  user: PairioUser
+  userId: string
 }
 
 export const isAddUserRequest = (x: any): x is AddUserRequest => {
   return validateObject(x, {
     type: isEqualTo('addUserRequest'),
-    user: isPairioUser
+    user: isString
   })
 }
 
@@ -441,6 +441,129 @@ export type SetUserInfoResponse = {
 export const isSetUserInfoResponse = (x: any): x is SetUserInfoResponse => {
   return validateObject(x, {
     type: isEqualTo('setUserInfoResponse')
+  })
+}
+
+// addService
+export type AddServiceRequest = {
+  type: 'addServiceRequest'
+  serviceName: string
+  userId: string
+}
+
+export const isAddServiceRequest = (x: any): x is AddServiceRequest => {
+  return validateObject(x, {
+    type: isEqualTo('addServiceRequest'),
+    serviceName: isString,
+    userId: isString
+  })
+}
+
+export type AddServiceResponse = {
+  type: 'addServiceResponse'
+}
+
+export const isAddServiceResponse = (x: any): x is AddServiceResponse => {
+  return validateObject(x, {
+    type: isEqualTo('addServiceResponse')
+  })
+}
+
+// getService
+export type GetServiceRequest = {
+  type: 'getServiceRequest'
+  serviceName: string
+}
+
+export const isGetServiceRequest = (x: any): x is GetServiceRequest => {
+  return validateObject(x, {
+    type: isEqualTo('getServiceRequest'),
+    serviceName: isString
+  })
+}
+
+export type GetServiceResponse = {
+  type: 'getServiceResponse'
+  service: PairioService
+}
+
+export const isGetServiceResponse = (x: any): x is GetServiceResponse => {
+  return validateObject(x, {
+    type: isEqualTo('getServiceResponse'),
+    service: isPairioService
+  })
+}
+
+// getServices
+export type GetServicesRequest = {
+  type: 'getServicesRequest'
+  userId?: string
+}
+
+export const isGetServicesRequest = (x: any): x is GetServicesRequest => {
+  return validateObject(x, {
+    type: isEqualTo('getServicesRequest'),
+    userId: optional(isString)
+  })
+}
+
+export type GetServicesResponse = {
+  type: 'getServicesResponse'
+  services: PairioService[]
+}
+
+export const isGetServicesResponse = (x: any): x is GetServicesResponse => {
+  return validateObject(x, {
+    type: isEqualTo('getServicesResponse'),
+    services: isArrayOf(isPairioService)
+  })
+}
+
+// deleteService
+export type DeleteServiceRequest = {
+  type: 'deleteServiceRequest'
+  serviceName: string
+}
+
+export const isDeleteServiceRequest = (x: any): x is DeleteServiceRequest => {
+  return validateObject(x, {
+    type: isEqualTo('deleteServiceRequest'),
+    serviceName: isString
+  })
+}
+
+export type DeleteServiceResponse = {
+  type: 'deleteServiceResponse'
+}
+
+export const isDeleteServiceResponse = (x: any): x is DeleteServiceResponse => {
+  return validateObject(x, {
+    type: isEqualTo('deleteServiceResponse')
+  })
+}
+
+// setServiceInfo
+export type SetServiceInfoRequest = {
+  type: 'setServiceInfoRequest'
+  serviceName: string
+  users?: PairioServiceUser[]
+}
+
+export const isSetServiceInfoRequest = (x: any): x is SetServiceInfoRequest => {
+  return validateObject(x, {
+    type: isEqualTo('setServiceInfoRequest'),
+    serviceName: isString,
+    users: optional(isArrayOf(isPairioServiceUser))
+  })
+}
+
+export type SetServiceInfoResponse = {
+  type: 'setServiceInfoResponse'
+}
+
+export const isSetServiceInfoResponse = (x: any): x is SetServiceInfoResponse => {
+  return validateObject(x, {
+    type: isEqualTo('setServiceInfoResponse')
   })
 }
 

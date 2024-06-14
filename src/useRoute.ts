@@ -4,10 +4,10 @@ import { useLocation, useNavigate } from "react-router-dom"
 export type Route = {
     page: 'home'
 } | {
-    page: 'apps'
+    page: 'services'
 } | {
-    page: 'app'
-    appName: string
+    page: 'service'
+    serviceName: string
 } | {
     page: 'compute_clients'
 } | {
@@ -28,16 +28,16 @@ const useRoute = () => {
     const search = location.search
     const searchParams = useMemo(() => new URLSearchParams(search), [search])
     const route: Route = useMemo(() => {
-        if (p === '/apps') {
+        if (p === '/services') {
             return {
-                page: 'apps'
+                page: 'services'
             }
         }
-        else if (p.startsWith('/app/')) {
-            const appName = p.slice('/app/'.length)
+        else if (p.startsWith('/service/')) {
+            const serviceName = p.slice('/service/'.length)
             return {
-                page: 'app',
-                appName
+                page: 'service',
+                serviceName
             }
         }
         else if (p === '/compute_clients') {
@@ -78,11 +78,11 @@ const useRoute = () => {
         if (r.page === 'home') {
             navigate('/')
         }
-        else if (r.page === 'apps') {
-            navigate('/apps')
+        else if (r.page === 'services') {
+            navigate('/services')
         }
-        else if (r.page === 'app') {
-            navigate(`/app/${r.appName}`)
+        else if (r.page === 'service') {
+            navigate(`/service/${r.serviceName}`)
         }
         else if (r.page === 'compute_clients') {
             navigate('/compute_clients')

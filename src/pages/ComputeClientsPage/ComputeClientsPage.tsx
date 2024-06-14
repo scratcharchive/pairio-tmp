@@ -2,7 +2,7 @@
 import { Hyperlink, SmallIconButton } from "@fi-sci/misc";
 import { Add } from "@mui/icons-material";
 import { FunctionComponent, useCallback, useState } from "react";
-import { useComputeClients } from "../../hooks";
+import { useServiceComputeClients } from "../../hooks";
 import useGitHubAccessToken from "../../useGitHubAccessToken";
 import useRoute from "../../useRoute";
 import ComputeClientsTable from "./ComputeClientsTable";
@@ -13,20 +13,20 @@ type ComputeClientsPageProps = {
 
 const ComputeClientsPage: FunctionComponent<ComputeClientsPageProps> = () => {
     const { userId } = useGitHubAccessToken();
-    const { computeClients, createComputeClient } = useComputeClients()
+    const { computeClients, createServiceComputeClient } = useServiceComputeClients()
     const { setRoute } = useRoute()
     const [registerComputeClientCommand, setRegisterComputeClientCommand] = useState('')
 
     const handleCreateComputeClient = useCallback(async () => {
         const label = prompt('Enter label for new compute client')
         if (!label) return
-        const ret = await createComputeClient(label)
+        const ret = await createServiceComputeClient(label)
         if (!ret) return
         const { computeClientId, computeClientPrivateKey } = ret
         setRegisterComputeClientCommand(
             `pairio register-compute-client --compute-client-id ${computeClientId} --compute-client-private-key ${computeClientPrivateKey}`
         )
-    }, [createComputeClient])
+    }, [createServiceComputeClient])
 
     if (!userId) return (
         <div style={{ padding: 20 }}>
