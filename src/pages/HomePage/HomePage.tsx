@@ -14,7 +14,7 @@ const HomePage: FunctionComponent<Props> = () => {
   const { userId } = useGitHubAccessToken();
   return (
     <div style={{padding: 30}}>
-      <h3>Pairio</h3>
+      <h3>Pairio - a prototype for the next Dendro</h3>
       <LoginButton />
       <hr />
       {userId && (

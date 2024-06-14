@@ -1,6 +1,121 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { isArrayOf, isBoolean, isEqualTo, isNull, isNumber, isOneOf, isString, optional, validateObject } from "@fi-sci/misc";
 
+// PairioService
+export type PairioService = {
+  serviceName: string
+  userId: string
+}
+
+export const isPairioService = (x: any): x is PairioService => {
+  return validateObject(x, {
+    serviceName: isString,
+    userId: isString
+  })
+}
+
+// PairioServiceUser
+export type PairioServiceUser = {
+  serviceName: string
+  userId: string
+  admin: boolean
+  createJobs: boolean
+  processJobs: boolean
+}
+
+export const isPairioServiceUser = (x: any): x is PairioServiceUser => {
+  return validateObject(x, {
+    serviceName: isString,
+    userId: isString,
+    admin: isBoolean,
+    createJobs: isBoolean,
+    processJobs: isBoolean
+  })
+}
+
+// PairioServiceApp
+export type PairioServiceApp = {
+  serviceName: string
+  appName: string
+  appSpecificationUri: string
+  appSpecificationCommit: string
+  appSpecification: PairioAppSpecification
+}
+
+export const isPairioServiceApp = (x: any): x is PairioServiceApp => {
+  return validateObject(x, {
+    serviceName: isString,
+    appName: isString,
+    appSpecificationUri: isString,
+    appSpecificationCommit: isString,
+    appSpecification: isPairioAppSpecification
+  })
+}
+
+// PairioServiceComputeClient
+export type PairioServiceComputeClient = {
+  serviceName: string
+  computeClientId: string
+  computeClientPrivateKey: string | null
+  userId: string
+  label: string
+  description: string
+  computeSlots: ServiceComputeClientComputeSlot[]
+}
+
+export const isPairioServiceComputeClient = (x: any): x is PairioServiceComputeClient => {
+  return validateObject(x, {
+    serviceName: isString,
+    computeClientId: isString,
+    computeClientPrivateKey: isOneOf([isString, isNull]),
+    userId: isString,
+    label: isString,
+    description: isString,
+    computeSlots: isArrayOf(isServiceComputeClientComputeSlot)
+  })
+}
+
+// PairioAppProcessor
+export type PairioAppProcessor = {
+  name: string
+  description: string
+  label: string
+  image: string
+  executable: string
+  inputs: PairioAppProcessorInputFile[]
+  outputs: PairioAppProcessorOutputFile[]
+  parameters: PairioAppProcessorParameter[]
+}
+
+export const isPairioAppProcessor = (x: any): x is PairioAppProcessor => {
+  return validateObject(x, {
+    name: isString,
+    description: isString,
+    label: isString,
+    image: isString,
+    executable: isString,
+    inputs: isArrayOf(isPairioAppProcessorInputFile),
+    outputs: isArrayOf(isPairioAppProcessorOutputFile),
+    parameters: isArrayOf(isPairioAppProcessorParameter)
+  })
+}
+
+// PairioAppSpecification
+export type PairioAppSpecification = {
+  name: string
+  description: string
+  processors: PairioAppProcessor[]
+}
+
+export const isPairioAppSpecification = (x: any): x is PairioAppSpecification => {
+  return validateObject(x, {
+    name: isString,
+    description: isString,
+    processors: isArrayOf(isPairioAppProcessor)
+  })
+}
+
+// PairioJobInputFile
 export type PairioJobInputFile = {
   name: string
   fileBaseName: string
@@ -15,6 +130,7 @@ export const isPairioJobInputFile = (x: any): x is PairioJobInputFile => {
   })
 }
 
+// PairioJobOutputFile
 export type PairioJobOutputFile = {
   name: string
   fileBaseName: string
@@ -29,6 +145,7 @@ export const isPairioJobOutputFile = (x: any): x is PairioJobOutputFile => {
   })
 }
 
+// PairioJobParameter
 export type PairioJobParameter = {
   name: string
   value: string | number | boolean | string[] | number[] | boolean[] | null // null means undefined
@@ -41,6 +158,7 @@ export const isPairioJobParameter = (x: any): x is PairioJobParameter => {
   })
 }
 
+// PairioJobRequiredResources
 export type PairioJobRequiredResources = {
   numCpus: number
   numGpus: number
@@ -57,6 +175,7 @@ export const isPairioJobRequiredResources = (x: any): x is PairioJobRequiredReso
   })
 }
 
+// PairioJobSecret
 export type PairioJobSecret = {
   name: string
   value: string
@@ -69,26 +188,44 @@ export const isPairioJobSecret = (x: any): x is PairioJobSecret => {
   })
 }
 
-export type PairioJobStatus = 'pending' | 'running' | 'completed' | 'failed'
+// PairioJobStatus
+export type PairioJobStatus = 'pending' | 'starting' | 'running' | 'completed' | 'failed'
 
 export const isPairioJobStatus = (x: any): x is PairioJobStatus => {
   return validateObject(x, {
-    status: isOneOf(['pending', 'running', 'completed', 'failed'].map(isEqualTo))
+    status: isOneOf(['pending', 'starting', 'running', 'completed', 'failed'].map(isEqualTo))
   })
 }
 
-export type PairioJob = {
-  // creation
-  jobId: string
-  jobPrivateKey: string | null
-  userId: string
-  batchId: string
-  projectName: string
+// PairioJobDefinition
+export type PairioJobDefinition = {
   appName: string
   processorName: string
   inputFiles: PairioJobInputFile[]
   outputFiles: PairioJobOutputFile[]
   parameters: PairioJobParameter[]
+}
+
+export const isPairioJobDefinition = (x: any): x is PairioJobDefinition => {
+  return validateObject(x, {
+    appName: isString,
+    processorName: isString,
+    inputFiles: isArrayOf(isPairioJobInputFile),
+    outputFiles: isArrayOf(isPairioJobOutputFile),
+    parameters: isArrayOf(isPairioJobParameter)
+  })
+}
+
+// PairioJob
+export type PairioJob = {
+  jobId: string
+  jobPrivateKey: string | null
+  serviceName: string
+  userId: string
+  batchId: string
+  projectName: string
+  jobDefinition: PairioJobDefinition
+  jobDefinitionHash: string
   requiredResources: PairioJobRequiredResources
   secrets: PairioJobSecret[] | null
   inputFileUrls: string[]
@@ -102,7 +239,7 @@ export type PairioJob = {
   status: PairioJobStatus
   error: string | null
   computeClientId: string | null
-  computeSlot: ComputeClientComputeSlot | null
+  computeSlot: ServiceComputeClientComputeSlot | null
   imageUri: string | null
 }
 
@@ -110,14 +247,12 @@ export const isPairioJob = (x: any): x is PairioJob => {
   return validateObject(x, {
     jobId: isString,
     jobPrivateKey: isOneOf([isString, isNull]),
+    serviceName: isString,
     userId: isString,
     batchId: isString,
     projectName: isString,
-    appName: isString,
-    processorName: isString,
-    inputFiles: isArrayOf(isPairioJobInputFile),
-    outputFiles: isArrayOf(isPairioJobOutputFile),
-    parameters: isArrayOf(isPairioJobParameter),
+    jobDefinition: isPairioJobDefinition,
+    jobDefinitionHash: isString,
     requiredResources: isPairioJobRequiredResources,
     secrets: isOneOf([isArrayOf(isPairioJobSecret), isNull]),
     inputFileUrls: isArrayOf(isString),
@@ -131,11 +266,12 @@ export const isPairioJob = (x: any): x is PairioJob => {
     status: isPairioJobStatus,
     error: isOneOf([isString, isNull]),
     computeClientId: isOneOf([isString, isNull]),
-    computeSlot: isOneOf([isComputeClientComputeSlot, isNull]),
+    computeSlot: isOneOf([isServiceComputeClientComputeSlot, isNull]),
     imageUri: isOneOf([isString, isNull])
   })
 }
 
+// PairioAppProcessorInputFile
 export type PairioAppProcessorInputFile = {
   name: string
   description: string
@@ -148,6 +284,7 @@ export const isPairioAppProcessorInputFile = (x: any): x is PairioAppProcessorIn
   })
 }
 
+// PairioAppProcessorOutputFile
 export type PairioAppProcessorOutputFile = {
   name: string
   description: string
@@ -160,6 +297,7 @@ export const isPairioAppProcessorOutputFile = (x: any): x is PairioAppProcessorO
   })
 }
 
+// PairioAppProcessorParameterTypes
 export type PairioAppProcessorParameterTypes = 'str' | 'int' | 'float' | 'bool' | 'List[str]' | 'List[int]' | 'List[float]' | 'Optional[str]' | 'Optional[int]' | 'Optional[float]' | 'Optional[bool]'
 
 export const isPairioAppProcessorParameterTypes = (x: any): x is PairioAppProcessorParameterTypes => {
@@ -168,6 +306,7 @@ export const isPairioAppProcessorParameterTypes = (x: any): x is PairioAppProces
   })
 }
 
+// PairioAppProcessorParameter
 export type PairioAppProcessorParameter = {
   name: string
   type: PairioAppProcessorParameterTypes
@@ -184,49 +323,8 @@ export const isPairioAppProcessorParameter = (x: any): x is PairioAppProcessorPa
   })
 }
 
-export type PairioAppProcessor = {
-  processorName: string
-  description: string
-  image: string
-  inputFiles: PairioAppProcessorInputFile[]
-  outputFiles: PairioAppProcessorOutputFile[]
-  parameters: PairioAppProcessorParameter[]
-}
-
-export const isPairioAppProcessor = (x: any): x is PairioAppProcessor => {
-  return validateObject(x, {
-    processorName: isString,
-    description: isString,
-    image: isString,
-    inputFiles: isArrayOf(isPairioAppProcessorInputFile),
-    outputFiles: isArrayOf(isPairioAppProcessorOutputFile),
-    parameters: isArrayOf(isPairioAppProcessorParameter)
-  })
-}
-
-export type PairioApp = {
-  userId: string
-  appName: string
-  description: string
-  sourceUri: string
-  processors: PairioAppProcessor[]
-  jobCreateUsers: string[]
-  jobProcessUsers: string[]
-}
-
-export const isPairioApp = (x: any): x is PairioApp => {
-  return validateObject(x, {
-    userId: isString,
-    appName: isString,
-    description: isString,
-    sourceUri: isString,
-    processors: isArrayOf(isPairioAppProcessor),
-    jobCreateUsers: isArrayOf(isString),
-    jobProcessUsers: isArrayOf(isString)
-  })
-}
-
-export type ComputeClientComputeSlot = {
+// ServiceComputeClientComputeSlot
+export type ServiceComputeClientComputeSlot = {
   computeSlotId: string
   numCpus: number
   numGpus: number
@@ -239,7 +337,7 @@ export type ComputeClientComputeSlot = {
   multiplicity: number | null
 }
 
-export const isComputeClientComputeSlot = (x: any): x is ComputeClientComputeSlot => {
+export const isServiceComputeClientComputeSlot = (x: any): x is ServiceComputeClientComputeSlot => {
   return validateObject(x, {
     computeSlotId: isString,
     numCpus: isNumber,
@@ -254,28 +352,7 @@ export const isComputeClientComputeSlot = (x: any): x is ComputeClientComputeSlo
   })
 }
 
-export type ComputeClient = {
-  computeClientId: string
-  computeClientPrivateKey: string | null
-  userId: string
-  label: string
-  description: string
-  appsToProcess: string[]
-  computeSlots: ComputeClientComputeSlot[]
-}
-
-export const isComputeClient = (x: any): x is ComputeClient => {
-  return validateObject(x, {
-    computeClientId: isString,
-    computeClientPrivateKey: isOneOf([isString, isNull]),
-    userId: isString,
-    label: isString,
-    description: isString,
-    appsToProcess: isArrayOf(isString),
-    computeSlots: isArrayOf(isComputeClientComputeSlot)
-  })
-}
-
+// PairioUser
 export type PairioUser = {
   userId: string
   name: string
@@ -361,17 +438,20 @@ export type SetUserInfoResponse = {
   type: 'setUserInfoResponse'
 }
 
+export const isSetUserInfoResponse = (x: any): x is SetUserInfoResponse => {
+  return validateObject(x, {
+    type: isEqualTo('setUserInfoResponse')
+  })
+}
+
 // createJob
 export type CreateJobRequest = {
   type: 'createJobRequest'
+  serviceName: string
   userId: string
   batchId: string
   projectName: string
-  appName: string
-  processorName: string
-  inputFiles: PairioJobInputFile[]
-  outputFiles: PairioJobOutputFile[]
-  parameters: PairioJobParameter[]
+  jobDefinition: PairioJobDefinition
   requiredResources: PairioJobRequiredResources
   secrets: PairioJobSecret[]
 }
@@ -379,14 +459,11 @@ export type CreateJobRequest = {
 export const isCreateJobRequest = (x: any): x is CreateJobRequest => {
   return validateObject(x, {
     type: isEqualTo('createJobRequest'),
+    serviceName: isString,
     userId: isString,
     batchId: isString,
     projectName: isString,
-    appName: isString,
-    processorName: isString,
-    inputFiles: isArrayOf(isPairioJobInputFile),
-    outputFiles: isArrayOf(isPairioJobOutputFile),
-    parameters: isArrayOf(isPairioJobParameter),
+    jobDefinition: isPairioJobDefinition,
     requiredResources: isPairioJobRequiredResources,
     secrets: isArrayOf(isPairioJobSecret)
   })
@@ -413,6 +490,7 @@ export type GetJobsRequest = {
   computeClientId?: string
   batchId?: string
   projectName?: string
+  serviceName?: string
   appName?: string
   inputFileUrl?: string
   outputFileUrl?: string
@@ -428,6 +506,7 @@ export const isGetJobsRequest = (x: any): x is GetJobsRequest => {
     computeClientId: optional(isString),
     batchId: optional(isString),
     projectName: optional(isString),
+    serviceName: optional(isString),
     appName: optional(isString),
     inputFileUrl: optional(isString),
     outputFileUrl: optional(isString),
@@ -557,231 +636,241 @@ export const isGetSignedUploadUrlResponse = (x: any): x is GetSignedUploadUrlRes
   })
 }
 
-// createComputeClient
-export type CreateComputeClientRequest = {
-  type: 'createComputeClientRequest'
-  computeClient: ComputeClient // computeClientId should be empty string and computeClientPrivateKey should be null
+// createServiceComputeClient
+export type CreateServiceComputeClientRequest = {
+  type: 'createServiceComputeClientRequest'
+  serviceName: string
+  userId: string
 }
 
-export const isCreateComputeClientRequest = (x: any): x is CreateComputeClientRequest => {
+export const isCreateServiceComputeClientRequest = (x: any): x is CreateServiceComputeClientRequest => {
   return validateObject(x, {
-    type: isEqualTo('createComputeClientRequest'),
-    computeClient: isComputeClient
+    type: isEqualTo('createServiceComputeClientRequest'),
+    serviceName: isString,
+    userId: isString
   })
 }
 
-export type CreateComputeClientResponse = {
-  type: 'createComputeClientResponse'
+export type CreateServiceComputeClientResponse = {
+  type: 'createServiceComputeClientResponse'
   computeClientId: string
   computeClientPrivateKey: string
 }
 
-export const isCreateComputeClientResponse = (x: any): x is CreateComputeClientResponse => {
+export const isCreateServiceComputeClientResponse = (x: any): x is CreateServiceComputeClientResponse => {
   return validateObject(x, {
-    type: isEqualTo('createComputeClientResponse'),
+    type: isEqualTo('createServiceComputeClientResponse'),
     computeClientId: isString,
     computeClientPrivateKey: isString
   })
 }
 
-// deleteComputeClient
-export type DeleteComputeClientRequest = {
-  type: 'deleteComputeClientRequest'
+// deleteServiceComputeClient
+export type DeleteServiceComputeClientRequest = {
+  type: 'deleteServiceComputeClientRequest'
   computeClientId: string
 }
 
-export const isDeleteComputeClientRequest = (x: any): x is DeleteComputeClientRequest => {
+export const isDeleteServiceComputeClientRequest = (x: any): x is DeleteServiceComputeClientRequest => {
   return validateObject(x, {
-    type: isEqualTo('deleteComputeClientRequest'),
+    type: isEqualTo('deleteServiceComputeClientRequest'),
     computeClientId: isString
   })
 }
 
-export type DeleteComputeClientResponse = {
-  type: 'deleteComputeClientResponse'
+export type DeleteServiceComputeClientResponse = {
+  type: 'deleteServiceComputeClientResponse'
 }
 
-export const isDeleteComputeClientResponse = (x: any): x is DeleteComputeClientResponse => {
+export const isDeleteComputeClientResponse = (x: any): x is DeleteServiceComputeClientResponse => {
   return validateObject(x, {
-    type: isEqualTo('deleteComputeClientResponse')
+    type: isEqualTo('deleteServiceComputeClientResponse')
   })
 }
 
-// getComputeClient
-export type GetComputeClientRequest = {
-  type: 'getComputeClientRequest'
+// getServiceComputeClient
+export type GetServiceComputeClientRequest = {
+  type: 'getServiceComputeClientRequest'
   computeClientId: string
 }
 
-export const isGetComputeClientRequest = (x: any): x is GetComputeClientRequest => {
+export const isGetServiceComputeClientRequest = (x: any): x is GetServiceComputeClientRequest => {
   return validateObject(x, {
-    type: isEqualTo('getComputeClientRequest'),
+    type: isEqualTo('getServiceComputeClientRequest'),
     computeClientId: isString
   })
 }
 
-export type GetComputeClientResponse = {
-  type: 'getComputeClientResponse'
-  computeClient: ComputeClient
+export type GetServiceComputeClientResponse = {
+  type: 'getServiceComputeClientResponse'
+  computeClient: PairioServiceComputeClient
 }
 
-export const isGetComputeClientResponse = (x: any): x is GetComputeClientResponse => {
+export const isGetServiceComputeClientResponse = (x: any): x is GetServiceComputeClientResponse => {
   return validateObject(x, {
-    type: isEqualTo('getComputeClientResponse'),
-    computeClient: isComputeClient
+    type: isEqualTo('getServiceComputeClientResponse'),
+    computeClient: isPairioServiceComputeClient
   })
 }
 
-// getComputeClients
-export type GetComputeClientsRequest = {
-  type: 'getComputeClientsRequest'
+// getServiceComputeClients
+export type GetServiceComputeClientsRequest = {
+  type: 'getServiceComputeClientsRequest'
   userId?: string
+  serviceName?: string
 }
 
-export const isGetComputeClientsRequest = (x: any): x is GetComputeClientsRequest => {
+export const isGetServiceComputeClientsRequest = (x: any): x is GetServiceComputeClientsRequest => {
   return validateObject(x, {
-    type: isEqualTo('getComputeClientsRequest'),
-    userId: optional(isString)
+    type: isEqualTo('getServiceComputeClientsRequest'),
+    userId: optional(isString),
+    serviceName: optional(isString)
   })
 }
 
-export type GetComputeClientsResponse = {
-  type: 'getComputeClientsResponse'
-  computeClients: ComputeClient[]
+export type GetServiceComputeClientsResponse = {
+  type: 'getServiceComputeClientsResponse'
+  computeClients: PairioServiceComputeClient[]
 }
 
-export const isGetComputeClientsResponse = (x: any): x is GetComputeClientsResponse => {
+export const isGetServiceComputeClientsResponse = (x: any): x is GetServiceComputeClientsResponse => {
   return validateObject(x, {
-    type: isEqualTo('getComputeClientsResponse'),
-    computeClients: isArrayOf(isComputeClient)
+    type: isEqualTo('getServiceComputeClientsResponse'),
+    computeClients: isArrayOf(isPairioServiceComputeClient)
   })
 }
 
-// addApp
-export type AddAppRequest = {
-  type: 'addAppRequest'
-  app: PairioApp
+// addServiceApp
+export type AddServiceAppRequest = {
+  type: 'addServiceAppRequest'
+  app: PairioServiceApp
 }
 
-export const isAddAppRequest = (x: any): x is AddAppRequest => {
+export const isAddServiceAppRequest = (x: any): x is AddServiceAppRequest => {
   return validateObject(x, {
-    type: isEqualTo('addAppRequest'),
-    app: isPairioApp
+    type: isEqualTo('addServiceAppRequest'),
+    app: isPairioServiceApp
   })
 }
 
-export type AddAppResponse = {
-  type: 'addAppResponse'
+export type AddServiceAppResponse = {
+  type: 'addServiceAppResponse'
 }
 
-export const isAddAppResponse = (x: any): x is AddAppResponse => {
+export const isAddServiceAppResponse = (x: any): x is AddServiceAppResponse => {
   return validateObject(x, {
-    type: isEqualTo('addAppResponse')
+    type: isEqualTo('addServiceAppResponse')
   })
 }
 
-// setAppInfo
-export type SetAppInfoRequest = {
-  type: 'setAppInfoRequest'
+// setServiceAppInfo
+export type SetServiceAppInfoRequest = {
+  type: 'setServiceAppInfoRequest'
+  serviceName: string
   appName: string
   description?: string
-  sourceUri?: string
-  jobCreateUsers?: string[]
-  jobProcessUsers?: string[]
+  appSpecificationUri?: string
+  appSpecificationCommit?: string
   processors?: PairioAppProcessor[]
 }
 
-export const isSetAppInfoRequest = (x: any): x is SetAppInfoRequest => {
+export const isSetServiceAppInfoRequest = (x: any): x is SetServiceAppInfoRequest => {
   return validateObject(x, {
-    type: isEqualTo('setAppInfoRequest'),
+    type: isEqualTo('setServiceAppInfoRequest'),
+    serviceName: isString,
     appName: isString,
     description: optional(isString),
-    sourceUri: optional(isString),
-    jobCreateUsers: optional(isArrayOf(isString)),
-    jobProcessUsers: optional(isArrayOf(isString)),
+    appSpecificationUri: optional(isString),
+    appSpecificationCommit: optional(isString),
     processors: optional(isArrayOf(isPairioAppProcessor))
   })
 }
 
-export type SetAppInfoResponse = {
-  type: 'setAppInfoResponse'
+export type SetServiceAppInfoResponse = {
+  type: 'setServiceAppInfoResponse'
 }
 
-export const isSetAppInfoResponse = (x: any): x is SetAppInfoResponse => {
+export const isSetAppInfoResponse = (x: any): x is SetServiceAppInfoResponse => {
   return validateObject(x, {
-    type: isEqualTo('setAppInfoResponse')
+    type: isEqualTo('setServiceAppInfoResponse')
   })
 }
 
-// getApp
-export type GetAppRequest = {
-  type: 'getAppRequest'
+// getServiceApp
+export type GetServiceAppRequest = {
+  type: 'getServiceAppRequest'
+  serviceName: string
   appName: string
 }
 
-export const isGetAppRequest = (x: any): x is GetAppRequest => {
+export const isGetServiceAppRequest = (x: any): x is GetServiceAppRequest => {
   return validateObject(x, {
-    type: isEqualTo('getAppRequest'),
+    type: isEqualTo('getServiceAppRequest'),
+    serviceName: isString,
     appName: isString
   })
 }
 
-export type GetAppResponse = {
-  type: 'getAppResponse'
-  app: PairioApp
+export type GetServiceAppResponse = {
+  type: 'getServiceAppResponse'
+  app: PairioServiceApp
 }
 
-export const isGetAppResponse = (x: any): x is GetAppResponse => {
+export const isGetServiceAppResponse = (x: any): x is GetServiceAppResponse => {
   return validateObject(x, {
-    type: isEqualTo('getAppResponse'),
-    app: isPairioApp
+    type: isEqualTo('getServiceAppResponse'),
+    app: isPairioServiceApp
   })
 }
 
 // deleteApp
-export type DeleteAppRequest = {
-  type: 'deleteAppRequest'
+export type DeleteServiceAppRequest = {
+  type: 'deleteServiceAppRequest'
+  serviceName: string
   appName: string
 }
 
-export const isDeleteAppRequest = (x: any): x is DeleteAppRequest => {
+export const isDeleteServiceAppRequest = (x: any): x is DeleteServiceAppRequest => {
   return validateObject(x, {
-    type: isEqualTo('deleteAppRequest'),
+    type: isEqualTo('deleteServiceAppRequest'),
+    serviceName: isString,
     appName: isString
   })
 }
 
-export type DeleteAppResponse = {
-  type: 'deleteAppResponse'
+export type DeleteServiceAppResponse = {
+  type: 'deleteServiceAppResponse'
 }
 
-export const isDeleteAppResponse = (x: any): x is DeleteAppResponse => {
+export const isDeleteServiceAppResponse = (x: any): x is DeleteServiceAppResponse => {
   return validateObject(x, {
-    type: isEqualTo('deleteAppResponse')
+    type: isEqualTo('deleteServiceAppResponse')
   })
 }
 
-// getApps
-export type GetAppsRequest = {
-  type: 'getAppsRequest'
-  userId?: string
+// getServiceApps
+export type GetServiceAppsRequest = {
+  type: 'getServiceAppsRequest'
+  appName?: string
+  serviceName?: string
 }
 
-export const isGetAppsRequest = (x: any): x is GetAppsRequest => {
+export const isGetServiceAppsRequest = (x: any): x is GetServiceAppsRequest => {
   return validateObject(x, {
-    type: isEqualTo('getAppsRequest'),
-    userId: optional(isString)
+    type: isEqualTo('getServiceAppsRequest'),
+    appName: optional(isString),
+    serviceName: optional(isString)
   })
 }
 
-export type GetAppsResponse = {
-  type: 'getAppsResponse'
-  apps: PairioApp[]
+export type GetServiceAppsResponse = {
+  type: 'getServiceAppsResponse'
+  apps: PairioServiceApp[]
 }
 
-export const isGetAppsResponse = (x: any): x is GetAppsResponse => {
+export const isGetServiceAppsResponse = (x: any): x is GetServiceAppsResponse => {
   return validateObject(x, {
     type: isEqualTo('getAppsResponse'),
-    apps: isArrayOf(isPairioApp)
+    apps: isArrayOf(isPairioServiceApp)
   })
 }

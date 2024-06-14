@@ -2,34 +2,50 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
 import allowCors from "./allowCors.js"; // remove .js for local dev
 import { getMongoClient } from "./getMongoClient.js"; // remove .js for local dev
-import { AddAppResponse, AddUserResponse, CancelJobResponse, ComputeClient, CreateComputeClientResponse, CreateJobResponse, DeleteAppResponse, DeleteComputeClientResponse, GetAppResponse, GetAppsResponse, GetComputeClientResponse, GetComputeClientsResponse, GetJobResponse, GetJobsResponse, GetSignedUploadUrlResponse, PairioApp, PairioJob, PairioUser, ResetUserApiKeyResponse, SetAppInfoResponse, SetUserInfoResponse, isAddAppRequest, isAddUserRequest, isCancelJobRequest, isComputeClient, isCreateComputeClientRequest, isCreateJobRequest, isDeleteAppRequest, isDeleteComputeClientRequest, isGetAppRequest, isGetAppsRequest, isGetComputeClientRequest, isGetComputeClientsRequest, isGetJobRequest, isGetJobsRequest, isGetSignedUploadUrlRequest, isPairioApp, isPairioJob, isPairioUser, isResetUserApiKeyRequest, isSetAppInfoRequest, isSetJobStatusRequest, isSetUserInfoRequest } from "./types.js"; // remove .js for local dev
+import { AddServiceAppResponse, AddUserResponse, CancelJobResponse, CreateJobResponse, CreateServiceComputeClientResponse, DeleteServiceAppResponse, DeleteServiceComputeClientResponse, GetJobResponse, GetJobsResponse, GetServiceAppResponse, GetServiceAppsResponse, GetServiceComputeClientResponse, GetServiceComputeClientsResponse, GetSignedUploadUrlResponse, PairioJob, PairioService, PairioServiceApp, PairioServiceComputeClient, PairioUser, ResetUserApiKeyResponse, SetServiceAppInfoResponse, SetUserInfoResponse, isAddServiceAppRequest, isAddUserRequest, isCancelJobRequest, isCreateJobRequest, isCreateServiceComputeClientRequest, isDeleteServiceAppRequest, isDeleteServiceComputeClientRequest, isGetJobRequest, isGetJobsRequest, isGetServiceAppRequest, isGetServiceAppsRequest, isGetServiceComputeClientRequest, isGetServiceComputeClientsRequest, isGetSignedUploadUrlRequest, isPairioJob, isPairioService, isPairioServiceApp, isPairioServiceComputeClient, isPairioUser, isResetUserApiKeyRequest, isSetJobStatusRequest, isSetServiceAppInfoRequest, isSetUserInfoRequest } from "./types.js"; // remove .js for local dev
 
 const TEMPORY_ACCESS_TOKEN = process.env.TEMPORY_ACCESS_TOKEN;
 if (!TEMPORY_ACCESS_TOKEN) {
     throw new Error("TEMPORY_ACCESS_TOKEN is not set");
 }
 
-// addApp handler
-export const addAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+const dbName = 'pairio';
+
+const collectionNames = {
+    users: 'users',
+    services: 'services',
+    serviceApps: 'serviceApps',
+    serviceComputeClients: 'serviceComputeClients',
+    jobs: 'jobs'
+};
+
+// addServiceApp handler
+export const addServiceAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isAddAppRequest(rr)) {
+    if (!isAddServiceAppRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    const serviceName = rr.app.serviceName;
+    const service = await fetchService(serviceName);
+    if (!service) {
+        res.status(404).json({ error: "Service not found" });
         return;
     }
     const app = rr.app;
     const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!(await authenticateGitHubUser(app.userId, gitHubAccessToken))) {
+    if (!(await authenticateGitHubUser(service.userId, gitHubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
     try {
-        await insertApp(app);
-        const resp: AddAppResponse = {
-            type: 'addAppResponse'
+        await insertServiceApp(app);
+        const resp: AddServiceAppResponse = {
+            type: 'addServiceAppResponse'
         };
         res.status(200).json(resp);
     }
@@ -159,11 +175,12 @@ export const createJobHandler = allowCors(async (req: VercelRequest, res: Vercel
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
-        const app = await fetchApp(rr.appName);
+        const app = await fetchServiceApp(rr.serviceName, rr.jobDefinition.appName)
         if (!app) {
-            res.status(404).json({ error: "App not found" });
+            res.status(404).json({ error: "Service app not found" });
             return;
         }
+        // todo
         if ((!app.jobCreateUsers.includes(rr.userId)) && (!app.jobCreateUsers.includes('*'))) {
             res.status(401).json({ error: "This user is not allowed to create jobs for this app" });
             return;
@@ -172,30 +189,28 @@ export const createJobHandler = allowCors(async (req: VercelRequest, res: Vercel
         const jobId = generateJobId();
         const jobPrivateKey = generateJobPrivateKey();
 
-        for (const outputFile of rr.outputFiles) {
+        for (const outputFile of rr.jobDefinition.outputFiles) {
             if (outputFile.url) {
                 throw Error('Output file url should not be set');
             }
-            outputFile.url = await createOutputFileUrl({ appName: rr.appName, processorName: rr.processorName, jobId, outputName: outputFile.name, outputFileBaseName: outputFile.fileBaseName });
+            outputFile.url = await createOutputFileUrl({ serviceName: rr.serviceName, appName: rr.jobDefinition.appName, processorName: rr.jobDefinition.processorName, jobId, outputName: outputFile.name, outputFileBaseName: outputFile.fileBaseName });
         }
-        const consoleOutputUrl = await createOutputFileUrl({ appName: rr.appName, processorName: rr.processorName, jobId, outputName: 'console_output', outputFileBaseName: 'output.txt' });
-        const resourceUtilizationLogUrl = await createOutputFileUrl({ appName: rr.appName, processorName: rr.processorName, jobId, outputName: 'resource_utilization_log', outputFileBaseName: 'log.jsonl' });
+        const consoleOutputUrl = await createOutputFileUrl({ serviceName: rr.serviceName, appName: rr.jobDefinition.appName, processorName: rr.jobDefinition.processorName, jobId, outputName: 'console_output', outputFileBaseName: 'output.txt' });
+        const resourceUtilizationLogUrl = await createOutputFileUrl({ serviceName: rr.serviceName, appName: rr.jobDefinition.appName, processorName: rr.jobDefinition.processorName, jobId, outputName: 'resource_utilization_log', outputFileBaseName: 'log.jsonl' });
 
         const job: PairioJob = {
             jobId,
             jobPrivateKey,
+            serviceName: rr.serviceName,
             userId: rr.userId,
             batchId: rr.batchId,
             projectName: rr.projectName,
-            appName: rr.appName,
-            processorName: rr.processorName,
-            inputFiles: rr.inputFiles,
-            outputFiles: rr.outputFiles,
-            parameters: rr.parameters,
+            jobDefinition: rr.jobDefinition,
+            jobDefinitionHash: JSONStringifyDeterministic(rr.jobDefinition),
             requiredResources: rr.requiredResources,
             secrets: rr.secrets,
-            inputFileUrls: rr.inputFiles.map(f => f.url),
-            outputFileUrls: rr.outputFiles.map(f => f.url),
+            inputFileUrls: rr.jobDefinition.inputFiles.map(f => f.url),
+            outputFileUrls: rr.jobDefinition.outputFiles.map(f => f.url),
             consoleOutputUrl,
             resourceUtilizationLogUrl,
             timestampCreatedSec: Date.now() / 1000,
@@ -246,7 +261,7 @@ export const getJobsHandler = allowCors(async (req: VercelRequest, res: VercelRe
         else if (rr.processorName) {
             okayToProceed = true;
         }
-        else if (rr.appName) {
+        else if ((rr.serviceName) && (rr.appName)) {
             okayToProceed = true;
         }
         else if (rr.projectName) {
@@ -272,6 +287,7 @@ export const getJobsHandler = allowCors(async (req: VercelRequest, res: VercelRe
         if (rr.computeClientId) query['computeClientId'] = rr.computeClientId;
         if (rr.batchId) query['batchId'] = rr.batchId;
         if (rr.projectName) query['projectName'] = rr.projectName;
+        if (rr.serviceName) query['serviceName'] = rr.serviceName;
         if (rr.appName) query['appName'] = rr.appName;
         if (rr.inputFileUrl) query['inputFileUrls'] = rr.inputFileUrl;
         if (rr.outputFileUrl) query['outputFileUrls'] = rr.outputFileUrl;
@@ -404,17 +420,18 @@ export const setJobStatusHandler = allowCors(async (req: VercelRequest, res: Ver
             return;
         }
         const job = jobs[0]
-        const computeClient = await fetchComputeClient(computeClientId);
+        const computeClient = await fetchServiceComputeClient(computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
         }
         const computeClientUserId = computeClient.userId;
-        const app = await fetchApp(job.appName);
+        const app = await fetchServiceApp(job.serviceName, job.jobDefinition.appName);
         if (!app) {
             res.status(404).json({ error: "App not found" });
             return;
         }
+        // todo
         if (!app.jobProcessUsers.includes(computeClientUserId)) {
             res.status(401).json({ error: "This compute client is not allowed to process jobs for this app" });
             return;
@@ -514,19 +531,19 @@ export const getSignedUploadUrlHandler = allowCors(async (req: VercelRequest, re
     }
 });
 
-// deleteComputeClient handler
-export const deleteComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// deleteServiceComputeClient handler
+export const deleteServiceComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isDeleteComputeClientRequest(rr)) {
+    if (!isDeleteServiceComputeClientRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const computeClient = await fetchComputeClient(rr.computeClientId);
+        const computeClient = await fetchServiceComputeClient(rr.computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
@@ -536,9 +553,9 @@ export const deleteComputeClientHandler = allowCors(async (req: VercelRequest, r
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
-        await deleteComputeClient(rr.computeClientId);
-        const resp: DeleteComputeClientResponse = {
-            type: 'deleteComputeClientResponse'
+        await deleteServiceComputeClient(rr.computeClientId);
+        const resp: DeleteServiceComputeClientResponse = {
+            type: 'deleteServiceComputeClientResponse'
         };
         res.status(200).json(resp);
     }
@@ -548,39 +565,37 @@ export const deleteComputeClientHandler = allowCors(async (req: VercelRequest, r
     }
 });
 
-// createComputeClient handler
-export const createComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// createServiceComputeClient handler
+export const createServiceComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isCreateComputeClientRequest(rr)) {
+    if (!isCreateServiceComputeClientRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
-    const computeClient = rr.computeClient;
     const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-    if (!(await authenticateGitHubUser(computeClient.userId, gitHubAccessToken))) {
+    if (!(await authenticateGitHubUser(rr.userId, gitHubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
+    const computeClient: PairioServiceComputeClient = {
+        userId: rr.userId,
+        serviceName: rr.serviceName,
+        computeClientId: generateComputeClientId(),
+        computeClientPrivateKey: generateComputeClientPrivateKey(),
+        label: '',
+        description: '',
+        computeSlots: []
+    };
     try {
-        const computeClientId = generateComputeClientId();
-        const computeClientPrivateKey = generateComputeClientPrivateKey();
-        computeClient.computeClientId = computeClientId;
-        computeClient.computeClientPrivateKey = computeClientPrivateKey;
-        for (const slot of computeClient.computeSlots) {
-            if (slot.computeSlotId) {
-                throw Error('computeSlotId should not be set');
-            }
-            slot.computeSlotId = generateComputeSlotId();
-        }
-        await insertComputeClient(computeClient);
-        const resp: CreateComputeClientResponse = {
-            type: 'createComputeClientResponse',
-            computeClientId,
-            computeClientPrivateKey
+        await insertServiceComputeClient(computeClient);
+        const resp: CreateServiceComputeClientResponse = {
+            type: 'createServiceComputeClientResponse',
+            computeClientId: computeClient.computeClientId,
+            computeClientPrivateKey: computeClient.computeClientPrivateKey || '' // should not be null
         };
         res.status(200).json(resp);
     }
@@ -590,27 +605,27 @@ export const createComputeClientHandler = allowCors(async (req: VercelRequest, r
     }
 });
 
-// getComputeClient handler
-export const getComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// getServiceComputeClient handler
+export const getServiceComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isGetComputeClientRequest(rr)) {
+    if (!isGetServiceComputeClientRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const computeClient = await fetchComputeClient(rr.computeClientId);
+        const computeClient = await fetchServiceComputeClient(rr.computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
         }
         // hide the private key
         computeClient.computeClientPrivateKey = null;
-        const resp: GetComputeClientResponse = {
-            type: 'getComputeClientResponse',
+        const resp: GetServiceComputeClientResponse = {
+            type: 'getServiceComputeClientResponse',
             computeClient
         };
         res.status(200).json(resp);
@@ -621,32 +636,51 @@ export const getComputeClientHandler = allowCors(async (req: VercelRequest, res:
     }
 });
 
-// getComputeClients handler
-export const getComputeClientsHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// getServiceComputeClients handler
+export const getServiceComputeClientsHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isGetComputeClientsRequest(rr)) {
+    if (!isGetServiceComputeClientsRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        if (!rr.userId) {
-            res.status(400).json({ error: "userId must be provided" });
+        if (rr.userId) {
+            if (rr.serviceName) {
+                res.status(400).json({ error: "Cannot specify both userId and serviceName in request" });
+                return;
+
+            }
+            const computeClients = await fetchServiceComputeClientsForUser(rr.userId);
+            // hide the private keys
+            for (const computeClient of computeClients) {
+                computeClient.computeClientPrivateKey = null;
+            }
+            const resp: GetServiceComputeClientsResponse = {
+                type: 'getServiceComputeClientsResponse',
+                computeClients
+            };
+            res.status(200).json(resp);
+        }
+        else if (rr.serviceName) {
+            const computeClients = await fetchServiceComputeClientsForService(rr.serviceName);
+            // hide the private keys
+            for (const computeClient of computeClients) {
+                computeClient.computeClientPrivateKey = null;
+            }
+            const resp: GetServiceComputeClientsResponse = {
+                type: 'getServiceComputeClientsResponse',
+                computeClients
+            };
+            res.status(200).json(resp);
+        }
+        else {
+            res.status(400).json({ error: "Must specify either userId or serviceName in request" });
             return;
         }
-        const computeClients = await fetchComputeClientsForUser(rr.userId);
-        // hide the private keys
-        for (const computeClient of computeClients) {
-            computeClient.computeClientPrivateKey = null;
-        }
-        const resp: GetComputeClientsResponse = {
-            type: 'getComputeClientsResponse',
-            computeClients
-        };
-        res.status(200).json(resp);
     }
     catch (e) {
         console.error(e);
@@ -654,37 +688,36 @@ export const getComputeClientsHandler = allowCors(async (req: VercelRequest, res
     }
 });
 
-// setAppInfo handler
-export const setAppInfoHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// setServiceAppInfo handler
+export const setServiceAppInfoHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isSetAppInfoRequest(rr)) {
+    if (!isSetServiceAppInfoRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const app = await fetchApp(rr.appName);
-        if (!app) {
-            res.status(404).json({ error: "App not found" });
+        const service = await fetchService(rr.serviceName);
+        if (!service) {
+            res.status(404).json({ error: "Service not found" });
             return;
         }
         const githubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-        if (!(await authenticateGitHubUser(app.userId, githubAccessToken))) {
+        if (!(await authenticateGitHubUser(service.userId, githubAccessToken))) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
         const update: { [key: string]: any } = {};
         if (rr.description !== undefined) update['description'] = rr.description;
-        if (rr.sourceUri !== undefined) update['sourceUri'] = rr.sourceUri;
-        if (rr.jobCreateUsers !== undefined) update['jobCreateUsers'] = rr.jobCreateUsers;
-        if (rr.jobProcessUsers !== undefined) update['jobProcessUsers'] = rr.jobProcessUsers;
+        if (rr.appSpecificationUri !== undefined) update['appSpecificationUri'] = rr.appSpecificationUri;
+        if (rr.appSpecificationCommit !== undefined) update['appSpecificationCommit'] = rr.appSpecificationCommit;
         if (rr.processors !== undefined) update['processors'] = rr.processors;
-        await updateApp(rr.appName, update);
-        const resp: SetAppInfoResponse = {
-            type: 'setAppInfoResponse'
+        await updateServiceApp(rr.serviceName, rr.appName, update);
+        const resp: SetServiceAppInfoResponse = {
+            type: 'setServiceAppInfoResponse'
         };
         res.status(200).json(resp);
     }
@@ -694,25 +727,25 @@ export const setAppInfoHandler = allowCors(async (req: VercelRequest, res: Verce
     }
 });
 
-// getApp handler
-export const getAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// getServiceApp handler
+export const getServiceAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isGetAppRequest(rr)) {
+    if (!isGetServiceAppRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const app = await fetchApp(rr.appName);
+        const app = await fetchServiceApp(rr.serviceName, rr.appName);
         if (!app) {
             res.status(404).json({ error: "App not found" });
             return;
         }
-        const resp: GetAppResponse = {
-            type: 'getAppResponse',
+        const resp: GetServiceAppResponse = {
+            type: 'getServiceAppResponse',
             app
         };
         res.status(200).json(resp);
@@ -723,31 +756,36 @@ export const getAppHandler = allowCors(async (req: VercelRequest, res: VercelRes
     }
 });
 
-// deleteApp handler
-export const deleteAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// deleteServiceApp handler
+export const deleteServiceAppHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isDeleteAppRequest(rr)) {
+    if (!isDeleteServiceAppRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const app = await fetchApp(rr.appName);
-        if (!app) {
-            res.status(404).json({ error: "App not found" });
+        const service = await fetchService(rr.serviceName);
+        if (!service) {
+            res.status(404).json({ error: "Service not found" });
             return;
         }
         const gitHubAuthorizationToken = req.headers.authorization?.split(" ")[1]; // Extract the token
-        if (!(await authenticateGitHubUser(app.userId, gitHubAuthorizationToken))) {
+        if (!(await authenticateGitHubUser(service.userId, gitHubAuthorizationToken))) {
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
-        await deleteApp(rr.appName);
-        const resp: DeleteAppResponse = {
-            type: 'deleteAppResponse'
+        const app = await fetchServiceApp(rr.serviceName, rr.appName);
+        if (!app) {
+            res.status(404).json({ error: "Service app not found" });
+            return;
+        }
+        await deleteServiceApp(rr.serviceName, rr.appName);
+        const resp: DeleteServiceAppResponse = {
+            type: 'deleteServiceAppResponse'
         };
         res.status(200).json(resp);
     }
@@ -757,29 +795,44 @@ export const deleteAppHandler = allowCors(async (req: VercelRequest, res: Vercel
     }
 });
 
-// getApps handler
-export const getAppsHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// getServiceApps handler
+export const getServiceAppsHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
     console.log('---- rr', rr)
-    if (!isGetAppsRequest(rr)) {
+    if (!isGetServiceAppsRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        if (!rr.userId) {
-            res.status(400).json({ error: "userId must be provided" });
-            return;
+        if (rr.appName) {
+            if (rr.serviceName) {
+                res.status(400).json({ error: "Cannot specify both appName and serviceName in request" });
+                return;
+            }
+            const apps = await fetchServiceAppsForAppName(rr.appName);
+            const resp: GetServiceAppsResponse = {
+                type: 'getServiceAppsResponse',
+                apps
+            };
+            res.status(200).json(resp);
         }
-        const apps = await fetchAppsForUser(rr.userId);
-        const resp: GetAppsResponse = {
-            type: 'getAppsResponse',
-            apps
-        };
-        res.status(200).json(resp);
+        else if (rr.serviceName) {
+            const apps = await fetchServiceAppsForServiceName(rr.serviceName);
+            const resp: GetServiceAppsResponse = {
+                type: 'getServiceAppsResponse',
+                apps
+            };
+            res.status(200).json(resp);
+        }
+        else {
+            res.status(400).json({ error: "Must specify either appName or serviceName in request" });
+            return;
+
+        }
     }
     catch (e) {
         console.error(e);
@@ -802,9 +855,21 @@ const authenticateGitHubUser = async (userId: string, gitHubAccessToken: string 
     return userId === `github|${githubUserId}`;
 }
 
+const fetchService = async (serviceName: string): Promise<PairioService | null> => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.services);
+    const service = await collection.findOne({ serviceName });
+    if (!service) return null;
+    removeMongoId(service);
+    if (!isPairioService(service)) {
+        throw Error('Invalid service in database');
+    }
+    return service;
+}
+
 const fetchUser = async (userId: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('users');
+    const collection = client.db(dbName).collection(collectionNames.users);
     const user = await collection.findOne({ userId });
     if (!user) return null;
     removeMongoId(user);
@@ -816,64 +881,77 @@ const fetchUser = async (userId: string) => {
 
 const insertUser = async (user: PairioUser) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('users');
+    const collection = client.db(dbName).collection(collectionNames.users);
     await collection.insertOne(user);
 }
 
 const updateUser = async (userId: string, update: any) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('users');
+    const collection = client.db(dbName).collection(collectionNames.users);
     await collection
         .updateOne({ userId }, { $set: update });
 }
 
-const insertApp = async (app: PairioApp) => {
+const insertServiceApp = async (app: PairioServiceApp) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('apps');
+    const collection = client.db(dbName).collection(collectionNames.serviceApps);
     await collection.insertOne(app);
 }
 
-const fetchApp = async (appName: string) => {
+const fetchServiceApp = async (serviceName: string, appName: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('apps');
-    const app = await collection.findOne({ appName });
+    const collection = client.db(dbName).collection(collectionNames.serviceApps);
+    const app = await collection.findOne({ serviceName, appName });
     if (!app) return null;
     removeMongoId(app);
-    if (!isPairioApp(app)) {
-        throw Error('Invalid app in database');
+    if (!isPairioServiceApp(app)) {
+        throw Error('Invalid service app in database');
     }
     return app;
 }
 
-const fetchAppsForUser = async (userId: string) => {
+const fetchServiceAppsForAppName = async (appName: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('apps');
-    const apps = await collection.find({ userId }).toArray();
+    const collection = client.db(dbName).collection(collectionNames.serviceApps);
+    const apps = await collection.find({ appName }).toArray();
     for (const app of apps) {
         removeMongoId(app);
-        if (!isPairioApp(app)) {
-            throw Error('Invalid app in database');
+        if (!isPairioServiceApp(app)) {
+            throw Error('Invalid service app in database');
         }
     }
-    return apps.map((app: any) => app as PairioApp);
+    return apps.map((app: any) => app as PairioServiceApp);
 }
 
-const updateApp = async (appName: string, update: any) => {
+const fetchServiceAppsForServiceName = async (serviceName: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('apps');
+    const collection = client.db(dbName).collection(collectionNames.serviceApps);
+    const apps = await collection.find({ serviceName }).toArray();
+    for (const app of apps) {
+        removeMongoId(app);
+        if (!isPairioServiceApp(app)) {
+            throw Error('Invalid service app in database');
+        }
+    }
+    return apps.map((app: any) => app as PairioServiceApp);
+}
+
+const updateServiceApp = async (serviceName: string, appName: string, update: any) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.serviceApps);
     await collection
-        .updateOne({ appName }, { $set: update });
+        .updateOne({ serviceName, appName }, { $set: update });
 }
 
-const deleteApp = async (appName: string) => {
+const deleteServiceApp = async (serviceName: string, appName: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('apps');
-    await collection.deleteOne({ appName });
+    const collection = client.db(dbName).collection(collectionNames.serviceApps);
+    await collection.deleteOne({ serviceName, appName });
 }
 
 const fetchJobs = async (query: { [key: string]: any }) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('jobs');
+    const collection = client.db(dbName).collection(collectionNames.jobs);
     const jobs = await collection
         .find(query)
         .toArray();
@@ -888,7 +966,7 @@ const fetchJobs = async (query: { [key: string]: any }) => {
 
 const updateJob = async (jobId: string, update: any) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('jobs');
+    const collection = client.db(dbName).collection(collectionNames.jobs);
     await collection.updateOne({
         jobId
     }, {
@@ -898,7 +976,7 @@ const updateJob = async (jobId: string, update: any) => {
 
 const atomicUpdateJob = async (jobId: string, oldStatus: string, update: any) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('jobs');
+    const collection = client.db(dbName).collection(collectionNames.jobs);
     // QUESTION: is this going to be atomic?
     // Like if two requests come in at the same time, will one of them fail?
     const result = await collection.updateOne({
@@ -914,49 +992,62 @@ const atomicUpdateJob = async (jobId: string, oldStatus: string, update: any) =>
 
 const insertJob = async (job: PairioJob) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('jobs');
+    const collection = client.db(dbName).collection(collectionNames.jobs);
     await collection.insertOne(job);
 }
 
-const insertComputeClient = async (computeClient: ComputeClient) => {
+const insertServiceComputeClient = async (computeClient: PairioServiceComputeClient) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('computeClients');
+    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
     await collection.insertOne(computeClient);
 }
 
-const fetchComputeClient = async (computeClientId: string) => {
+const fetchServiceComputeClient = async (computeClientId: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('computeClients');
+    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
     const computeClient = await collection.findOne({ computeClientId });
     if (!computeClient) return null;
     removeMongoId(computeClient);
-    if (!isComputeClient(computeClient)) {
+    if (!isPairioServiceComputeClient(computeClient)) {
         throw Error('Invalid compute client in database');
     }
     return computeClient;
 }
 
-const fetchComputeClientsForUser = async (userId: string) => {
+const fetchServiceComputeClientsForUser = async (userId: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('computeClients');
+    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
     const computeClients = await collection.find({ userId }).toArray();
     for (const computeClient of computeClients) {
         removeMongoId(computeClient);
-        if (!isComputeClient(computeClient)) {
+        if (!isPairioServiceComputeClient(computeClient)) {
             throw Error('Invalid compute client in database');
         }
     }
-    return computeClients.map((computeClient: any) => computeClient as ComputeClient);
+    return computeClients.map((computeClient: any) => computeClient as PairioServiceComputeClient);
 }
 
-const deleteComputeClient = async (computeClientId: string) => {
+const fetchServiceComputeClientsForService = async (serviceName: string) => {
     const client = await getMongoClient();
-    const collection = client.db('pairio').collection('computeClients');
+    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
+    const computeClients = await collection.find({ serviceName }).toArray();
+    for (const computeClient of computeClients) {
+        removeMongoId(computeClient);
+        if (!isPairioServiceComputeClient(computeClient)) {
+            throw Error('Invalid compute client in database');
+        }
+    }
+    return computeClients.map((computeClient: any) => computeClient as PairioServiceComputeClient);
+}
+
+const deleteServiceComputeClient = async (computeClientId: string) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
     await collection.deleteOne({ computeClientId });
 }
 
 const authenticateComputeClient = async (computeClientId: string, authorizationToken: string | undefined): Promise<boolean> => {
-    const computeClient = await fetchComputeClient(computeClientId);
+    const computeClient = await fetchServiceComputeClient(computeClientId);
     if (!computeClient) return false;
     if (computeClient.computeClientPrivateKey !== authorizationToken) return false;
     return true;
@@ -1059,11 +1150,15 @@ const generateJobPrivateKey = () => {
     return generateRandomId(32);
 }
 
-const generateComputeSlotId = () => {
-    return generateRandomId(12);
+const createOutputFileUrl = async (a: { serviceName: string, appName: string, processorName: string, jobId: string, outputName: string, outputFileBaseName: string }) => {
+    const { serviceName, appName, processorName, jobId, outputName, outputFileBaseName } = a;
+    return `https://tempory.net/f/pairio/f/${serviceName}/${appName}/${processorName}/${jobId}/${outputName}/${outputFileBaseName}`;
 }
 
-const createOutputFileUrl = async (a: { appName: string, processorName: string, jobId: string, outputName: string, outputFileBaseName: string }) => {
-    const { appName, processorName, jobId, outputName, outputFileBaseName } = a;
-    return `https://tempory.net/f/pairio/f/${appName}/${processorName}/${jobId}/${outputName}/${outputFileBaseName}`;
+// Thanks: https://stackoverflow.com/questions/16167581/sort-object-properties-and-json-stringify
+export const JSONStringifyDeterministic = ( obj: any, space: string | number | undefined =undefined ) => {
+    const allKeys: string[] = [];
+    JSON.stringify( obj, function( key, value ){ allKeys.push( key ); return value; } )
+    allKeys.sort();
+    return JSON.stringify( obj, allKeys, space );
 }

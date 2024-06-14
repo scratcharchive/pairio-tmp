@@ -77,6 +77,24 @@ export const isPairioJobStatus = (x: any): x is PairioJobStatus => {
   })
 }
 
+export type PairioJobDefinition = {
+  appName: string
+  processorName: string
+  inputFiles: PairioJobInputFile[]
+  outputFiles: PairioJobOutputFile[]
+  parameters: PairioJobParameter[]
+}
+
+export const isPairioJobDefinition = (x: any): x is PairioJobDefinition => {
+  return validateObject(x, {
+    appName: isString,
+    processorName: isString,
+    inputFiles: isArrayOf(isPairioJobInputFile),
+    outputFiles: isArrayOf(isPairioJobOutputFile),
+    parameters: isArrayOf(isPairioJobParameter)
+  })
+}
+
 export type PairioJob = {
   // creation
   jobId: string
@@ -84,11 +102,8 @@ export type PairioJob = {
   userId: string
   batchId: string
   projectName: string
-  appName: string
-  processorName: string
-  inputFiles: PairioJobInputFile[]
-  outputFiles: PairioJobOutputFile[]
-  parameters: PairioJobParameter[]
+  jobDefinition: PairioJobDefinition
+  jobDefinitionHash: string
   requiredResources: PairioJobRequiredResources
   secrets: PairioJobSecret[] | null
   inputFileUrls: string[]
@@ -113,11 +128,8 @@ export const isPairioJob = (x: any): x is PairioJob => {
     userId: isString,
     batchId: isString,
     projectName: isString,
-    appName: isString,
-    processorName: isString,
-    inputFiles: isArrayOf(isPairioJobInputFile),
-    outputFiles: isArrayOf(isPairioJobOutputFile),
-    parameters: isArrayOf(isPairioJobParameter),
+    jobDefinition: isPairioJobDefinition,
+    jobDefinitionHash: isString,
     requiredResources: isPairioJobRequiredResources,
     secrets: isOneOf([isArrayOf(isPairioJobSecret), isNull]),
     inputFileUrls: isArrayOf(isString),
@@ -185,31 +197,48 @@ export const isPairioAppProcessorParameter = (x: any): x is PairioAppProcessorPa
 }
 
 export type PairioAppProcessor = {
-  processorName: string
+  name: string
   description: string
+  label: string
   image: string
-  inputFiles: PairioAppProcessorInputFile[]
-  outputFiles: PairioAppProcessorOutputFile[]
+  executable: string
+  inputs: PairioAppProcessorInputFile[]
+  outputs: PairioAppProcessorOutputFile[]
   parameters: PairioAppProcessorParameter[]
 }
 
 export const isPairioAppProcessor = (x: any): x is PairioAppProcessor => {
   return validateObject(x, {
-    processorName: isString,
+    name: isString,
     description: isString,
+    label: isString,
     image: isString,
-    inputFiles: isArrayOf(isPairioAppProcessorInputFile),
-    outputFiles: isArrayOf(isPairioAppProcessorOutputFile),
+    executable: isString,
+    inputs: isArrayOf(isPairioAppProcessorInputFile),
+    outputs: isArrayOf(isPairioAppProcessorOutputFile),
     parameters: isArrayOf(isPairioAppProcessorParameter)
+  })
+}
+
+export type PairioAppSpecification = {
+  name: string
+  description: string
+  processors: PairioAppProcessor[]
+}
+
+export const isPairioAppSpecification = (x: any): x is PairioAppSpecification => {
+  return validateObject(x, {
+    name: isString,
+    description: isString,
+    processors: isArrayOf(isPairioAppProcessor)
   })
 }
 
 export type PairioApp = {
   userId: string
   appName: string
-  description: string
-  sourceUri: string
-  processors: PairioAppProcessor[]
+  appSpecification: PairioAppSpecification
+  appSpecificationUri: string
   jobCreateUsers: string[]
   jobProcessUsers: string[]
 }
@@ -218,9 +247,8 @@ export const isPairioApp = (x: any): x is PairioApp => {
   return validateObject(x, {
     userId: isString,
     appName: isString,
-    description: isString,
-    sourceUri: isString,
-    processors: isArrayOf(isPairioAppProcessor),
+    appSpecification: isPairioAppSpecification,
+    appSpecificationUri: isString,
     jobCreateUsers: isArrayOf(isString),
     jobProcessUsers: isArrayOf(isString)
   })
@@ -367,11 +395,7 @@ export type CreateJobRequest = {
   userId: string
   batchId: string
   projectName: string
-  appName: string
-  processorName: string
-  inputFiles: PairioJobInputFile[]
-  outputFiles: PairioJobOutputFile[]
-  parameters: PairioJobParameter[]
+  jobDefinition: PairioJobDefinition
   requiredResources: PairioJobRequiredResources
   secrets: PairioJobSecret[]
 }
@@ -382,11 +406,7 @@ export const isCreateJobRequest = (x: any): x is CreateJobRequest => {
     userId: isString,
     batchId: isString,
     projectName: isString,
-    appName: isString,
-    processorName: isString,
-    inputFiles: isArrayOf(isPairioJobInputFile),
-    outputFiles: isArrayOf(isPairioJobOutputFile),
-    parameters: isArrayOf(isPairioJobParameter),
+    jobDefinition: isPairioJobDefinition,
     requiredResources: isPairioJobRequiredResources,
     secrets: isArrayOf(isPairioJobSecret)
   })
