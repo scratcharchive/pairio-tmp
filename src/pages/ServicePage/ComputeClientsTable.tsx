@@ -1,10 +1,10 @@
 import { Hyperlink } from "@fi-sci/misc";
 import { FunctionComponent } from "react";
-import { PairioServiceComputeClient } from "../../types";
+import { PairioComputeClient } from "../../types";
 import useRoute from "../../useRoute";
 
 type ComputeClientsTableProps = {
-    computeClients: PairioServiceComputeClient[]
+    computeClients: PairioComputeClient[]
 }
 
 const ComputeClientsTable: FunctionComponent<ComputeClientsTableProps> = ({ computeClients }) => {
@@ -14,26 +14,24 @@ const ComputeClientsTable: FunctionComponent<ComputeClientsTableProps> = ({ comp
             <thead>
                 <tr>
                     <th>Compute client</th>
-                    <th>ID</th>
-                    <th>User</th>
-                    <th>Description</th>
+                    <th>Service</th>
+                    <th>Owner</th>
                 </tr>
             </thead>
             <tbody>
-                {computeClients.map((computeClient) => (
-                    <tr key={computeClient.computeClientId}>
+                {computeClients.map((cc) => (
+                    <tr key={cc.computeClientId}>
                         <td>
                             <Hyperlink
                                 onClick={() => {
-                                    setRoute({page: 'compute_client', computeClientId: computeClient.computeClientId})
+                                    setRoute({page: 'compute_client', computeClientId: cc.computeClientId})
                                 }}
                             >
-                                {computeClient.label}
+                                {cc.label} ({cc.computeClientId})
                             </Hyperlink>
                         </td>
-                        <td>{computeClient.computeClientId}</td>
-                        <td>{computeClient.userId}</td>
-                        <td>{computeClient.description}</td>
+                        <td>{cc.serviceName}</td>
+                        <td>{cc.userId}</td>
                     </tr>
                 ))}
             </tbody>

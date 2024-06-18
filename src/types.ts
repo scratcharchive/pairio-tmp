@@ -52,18 +52,18 @@ export const isPairioServiceApp = (x: any): x is PairioServiceApp => {
   })
 }
 
-// PairioServiceComputeClient
-export type PairioServiceComputeClient = {
+// PairioComputeClient
+export type PairioComputeClient = {
   serviceName: string
   computeClientId: string
   computeClientPrivateKey: string | null
   userId: string
   label: string
   description: string
-  computeSlots: ServiceComputeClientComputeSlot[]
+  computeSlots: ComputeClientComputeSlot[]
 }
 
-export const isPairioServiceComputeClient = (x: any): x is PairioServiceComputeClient => {
+export const isPairioComputeClient = (x: any): x is PairioComputeClient => {
   return validateObject(x, {
     serviceName: isString,
     computeClientId: isString,
@@ -71,7 +71,7 @@ export const isPairioServiceComputeClient = (x: any): x is PairioServiceComputeC
     userId: isString,
     label: isString,
     description: isString,
-    computeSlots: isArrayOf(isServiceComputeClientComputeSlot)
+    computeSlots: isArrayOf(isComputeClientComputeSlot)
   })
 }
 
@@ -240,7 +240,7 @@ export type PairioJob = {
   status: PairioJobStatus
   error: string | null
   computeClientId: string | null
-  computeSlot: ServiceComputeClientComputeSlot | null
+  computeSlot: ComputeClientComputeSlot | null
   imageUri: string | null
 }
 
@@ -268,7 +268,7 @@ export const isPairioJob = (x: any): x is PairioJob => {
     status: isPairioJobStatus,
     error: isOneOf([isString, isNull]),
     computeClientId: isOneOf([isString, isNull]),
-    computeSlot: isOneOf([isServiceComputeClientComputeSlot, isNull]),
+    computeSlot: isOneOf([isComputeClientComputeSlot, isNull]),
     imageUri: isOneOf([isString, isNull])
   })
 }
@@ -325,8 +325,8 @@ export const isPairioAppProcessorParameter = (x: any): x is PairioAppProcessorPa
   })
 }
 
-// ServiceComputeClientComputeSlot
-export type ServiceComputeClientComputeSlot = {
+// ComputeClientComputeSlot
+export type ComputeClientComputeSlot = {
   computeSlotId: string
   numCpus: number
   numGpus: number
@@ -339,7 +339,7 @@ export type ServiceComputeClientComputeSlot = {
   multiplicity: number | null
 }
 
-export const isServiceComputeClientComputeSlot = (x: any): x is ServiceComputeClientComputeSlot => {
+export const isComputeClientComputeSlot = (x: any): x is ComputeClientComputeSlot => {
   return validateObject(x, {
     computeSlotId: isString,
     numCpus: isNumber,
@@ -761,120 +761,147 @@ export const isGetSignedUploadUrlResponse = (x: any): x is GetSignedUploadUrlRes
   })
 }
 
-// createServiceComputeClient
-export type CreateServiceComputeClientRequest = {
-  type: 'createServiceComputeClientRequest'
+// createComputeClient
+export type CreateComputeClientRequest = {
+  type: 'createComputeClientRequest'
   serviceName: string
   userId: string
 }
 
-export const isCreateServiceComputeClientRequest = (x: any): x is CreateServiceComputeClientRequest => {
+export const isCreateComputeClientRequest = (x: any): x is CreateComputeClientRequest => {
   return validateObject(x, {
-    type: isEqualTo('createServiceComputeClientRequest'),
+    type: isEqualTo('createComputeClientRequest'),
     serviceName: isString,
     userId: isString
   })
 }
 
-export type CreateServiceComputeClientResponse = {
-  type: 'createServiceComputeClientResponse'
+export type CreateComputeClientResponse = {
+  type: 'createComputeClientResponse'
   computeClientId: string
   computeClientPrivateKey: string
 }
 
-export const isCreateServiceComputeClientResponse = (x: any): x is CreateServiceComputeClientResponse => {
+export const isCreateComputeClientResponse = (x: any): x is CreateComputeClientResponse => {
   return validateObject(x, {
-    type: isEqualTo('createServiceComputeClientResponse'),
+    type: isEqualTo('createComputeClientResponse'),
     computeClientId: isString,
     computeClientPrivateKey: isString
   })
 }
 
-// deleteServiceComputeClient
-export type DeleteServiceComputeClientRequest = {
-  type: 'deleteServiceComputeClientRequest'
+// deleteComputeClient
+export type DeleteComputeClientRequest = {
+  type: 'deleteComputeClientRequest'
   computeClientId: string
 }
 
-export const isDeleteServiceComputeClientRequest = (x: any): x is DeleteServiceComputeClientRequest => {
+export const isDeleteComputeClientRequest = (x: any): x is DeleteComputeClientRequest => {
   return validateObject(x, {
-    type: isEqualTo('deleteServiceComputeClientRequest'),
+    type: isEqualTo('deleteComputeClientRequest'),
     computeClientId: isString
   })
 }
 
-export type DeleteServiceComputeClientResponse = {
-  type: 'deleteServiceComputeClientResponse'
+export type DeleteComputeClientResponse = {
+  type: 'deleteComputeClientResponse'
 }
 
-export const isDeleteComputeClientResponse = (x: any): x is DeleteServiceComputeClientResponse => {
+export const isDeleteComputeClientResponse = (x: any): x is DeleteComputeClientResponse => {
   return validateObject(x, {
-    type: isEqualTo('deleteServiceComputeClientResponse')
+    type: isEqualTo('deleteComputeClientResponse')
   })
 }
 
-// getServiceComputeClient
-export type GetServiceComputeClientRequest = {
-  type: 'getServiceComputeClientRequest'
+// getComputeClient
+export type GetComputeClientRequest = {
+  type: 'getComputeClientRequest'
   computeClientId: string
 }
 
-export const isGetServiceComputeClientRequest = (x: any): x is GetServiceComputeClientRequest => {
+export const isGetComputeClientRequest = (x: any): x is GetComputeClientRequest => {
   return validateObject(x, {
-    type: isEqualTo('getServiceComputeClientRequest'),
+    type: isEqualTo('getComputeClientRequest'),
     computeClientId: isString
   })
 }
 
-export type GetServiceComputeClientResponse = {
-  type: 'getServiceComputeClientResponse'
-  computeClient: PairioServiceComputeClient
+export type GetComputeClientResponse = {
+  type: 'getComputeClientResponse'
+  computeClient: PairioComputeClient
 }
 
-export const isGetServiceComputeClientResponse = (x: any): x is GetServiceComputeClientResponse => {
+export const isGetComputeClientResponse = (x: any): x is GetComputeClientResponse => {
   return validateObject(x, {
-    type: isEqualTo('getServiceComputeClientResponse'),
-    computeClient: isPairioServiceComputeClient
+    type: isEqualTo('getComputeClientResponse'),
+    computeClient: isPairioComputeClient
   })
 }
 
-// getServiceComputeClients
-export type GetServiceComputeClientsRequest = {
-  type: 'getServiceComputeClientsRequest'
-  userId?: string
+// getComputeClients
+export type GetComputeClientsRequest = {
+  type: 'getComputeClientsRequest'
   serviceName?: string
 }
 
-export const isGetServiceComputeClientsRequest = (x: any): x is GetServiceComputeClientsRequest => {
+export const isGetComputeClientsRequest = (x: any): x is GetComputeClientsRequest => {
   return validateObject(x, {
-    type: isEqualTo('getServiceComputeClientsRequest'),
-    userId: optional(isString),
+    type: isEqualTo('getComputeClientsRequest'),
     serviceName: optional(isString)
   })
 }
 
-export type GetServiceComputeClientsResponse = {
-  type: 'getServiceComputeClientsResponse'
-  computeClients: PairioServiceComputeClient[]
+export type GetComputeClientsResponse = {
+  type: 'getComputeClientsResponse'
+  computeClients: PairioComputeClient[]
 }
 
-export const isGetServiceComputeClientsResponse = (x: any): x is GetServiceComputeClientsResponse => {
+export const isGetComputeClientsResponse = (x: any): x is GetComputeClientsResponse => {
   return validateObject(x, {
-    type: isEqualTo('getServiceComputeClientsResponse'),
-    computeClients: isArrayOf(isPairioServiceComputeClient)
+    type: isEqualTo('getComputeClientsResponse'),
+    computeClients: isArrayOf(isPairioComputeClient)
+  })
+}
+
+// setComputeClientInfo
+export type SetComputeClientInfoRequest = {
+  type: 'setComputeClientInfoRequest'
+  computeClientId: string
+  label?: string
+  description?: string
+  computeSlots?: ComputeClientComputeSlot[]
+}
+
+export const isSetComputeClientInfoRequest = (x: any): x is SetComputeClientInfoRequest => {
+  return validateObject(x, {
+    type: isEqualTo('setComputeClientInfoRequest'),
+    computeClientId: isString,
+    label: optional(isString),
+    description: optional(isString),
+    computeSlots: optional(isArrayOf(isComputeClientComputeSlot))
+  })
+}
+
+export type SetComputeClientInfoResponse = {
+  type: 'setComputeClientInfoResponse'
+}
+
+export const isSetComputeClientInfoResponse = (x: any): x is SetComputeClientInfoResponse => {
+  return validateObject(x, {
+    type: isEqualTo('setComputeClientInfoResponse')
   })
 }
 
 // addServiceApp
 export type AddServiceAppRequest = {
   type: 'addServiceAppRequest'
-  app: PairioServiceApp
+  serviceApp: PairioServiceApp
 }
 
 export const isAddServiceAppRequest = (x: any): x is AddServiceAppRequest => {
   return validateObject(x, {
     type: isEqualTo('addServiceAppRequest'),
-    app: isPairioServiceApp
+    serviceApp: isPairioServiceApp
   })
 }
 
@@ -990,12 +1017,12 @@ export const isGetServiceAppsRequest = (x: any): x is GetServiceAppsRequest => {
 
 export type GetServiceAppsResponse = {
   type: 'getServiceAppsResponse'
-  apps: PairioServiceApp[]
+  serviceApps: PairioServiceApp[]
 }
 
 export const isGetServiceAppsResponse = (x: any): x is GetServiceAppsResponse => {
   return validateObject(x, {
-    type: isEqualTo('getAppsResponse'),
-    apps: isArrayOf(isPairioServiceApp)
+    type: isEqualTo('getServiceAppsResponse'),
+    serviceApps: isArrayOf(isPairioServiceApp)
   })
 }

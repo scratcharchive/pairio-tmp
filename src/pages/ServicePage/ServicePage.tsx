@@ -3,12 +3,15 @@ import { Hyperlink } from "@fi-sci/misc"
 import { FunctionComponent, useState } from "react"
 import { useService } from "../../hooks"
 import useRoute from "../../useRoute"
+import ComputeClientsView from "./ComputeClientsView"
+import ServiceAppsView from "./ServiceAppsView"
 
 type ServicePageProps = {
-    // none
+    width: number
+    height: number
 }
 
-const ServicePage: FunctionComponent<ServicePageProps> = () => {
+const ServicePage: FunctionComponent<ServicePageProps> = ({width, height}) => {
     const { route, setRoute } = useRoute()
     const [errorMessage,] = useState<string | null>(null)
     if (route.page !== 'service') {
@@ -16,6 +19,7 @@ const ServicePage: FunctionComponent<ServicePageProps> = () => {
     }
     const serviceName = route.serviceName
     const { service, deleteService } = useService(serviceName)
+
     // const handleLoadFromSource = useCallback(async () => {
     //     if (!service) return
     //     if (!app.sourceUri) return
@@ -51,6 +55,7 @@ const ServicePage: FunctionComponent<ServicePageProps> = () => {
         )
     }
     return (
+        <div style={{position: 'absolute', width, height, overflowY: 'auto'}}>
         <div style={{padding: 20, maxWidth: 500}}>
             <div>
                 <Hyperlink onClick={() => {
@@ -87,7 +92,7 @@ const ServicePage: FunctionComponent<ServicePageProps> = () => {
                     </tr>
                 </tbody>
             </table>
-            <hr />
+            <div>&nbsp;</div>
             <div>
                 {errorMessage && (
                     <div style={{color: 'red'}}>
@@ -95,6 +100,13 @@ const ServicePage: FunctionComponent<ServicePageProps> = () => {
                     </div>
                 )}
             </div>
+            <hr />
+            <h3>Apps</h3>
+            <ServiceAppsView serviceName={serviceName} />
+            <hr />
+            <h3>Compute clients</h3>
+            <ComputeClientsView serviceName={serviceName} />
+            <hr />
             <div>
                 {/* Delete service */}
                 <button onClick={async () => {
@@ -105,6 +117,7 @@ const ServicePage: FunctionComponent<ServicePageProps> = () => {
                     Delete service
                 </button>
             </div>
+        </div>
         </div>
     )
 }

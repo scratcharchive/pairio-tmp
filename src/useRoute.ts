@@ -9,10 +9,12 @@ export type Route = {
     page: 'service'
     serviceName: string
 } | {
-    page: 'compute_clients'
-} | {
     page: 'compute_client'
     computeClientId: string
+} | {
+    page: 'service_app'
+    serviceName: string
+    appName: string
 } | {
     page: 'set_access_token'
     accessToken: string
@@ -24,7 +26,6 @@ const useRoute = () => {
     const location = useLocation()
     const navigate = useNavigate()
     const p = location.pathname
-    console.log('--- p', p)
     const search = location.search
     const searchParams = useMemo(() => new URLSearchParams(search), [search])
     const route: Route = useMemo(() => {
@@ -40,16 +41,24 @@ const useRoute = () => {
                 serviceName
             }
         }
-        else if (p === '/compute_clients') {
-            return {
-                page: 'compute_clients'
-            }
-        }
         else if (p.startsWith('/compute_client/')) {
             const computeClientId = p.slice('/compute_client/'.length)
             return {
                 page: 'compute_client',
                 computeClientId
+            }
+        }
+        else if (p.startsWith('/service_app/')) {
+            const parts = p.slice('/service_app/'.length).split('/')
+            if (parts.length !== 2) {
+                throw new Error(`Invalid service app URL: ${p}`)
+            }
+            const serviceName = parts[0]
+            const appName = parts[1]
+            return {
+                page: 'service_app',
+                serviceName,
+                appName
             }
         }
         else if (p === '/set_access_token') {
@@ -84,11 +93,11 @@ const useRoute = () => {
         else if (r.page === 'service') {
             navigate(`/service/${r.serviceName}`)
         }
-        else if (r.page === 'compute_clients') {
-            navigate('/compute_clients')
-        }
         else if (r.page === 'compute_client') {
             navigate(`/compute_client/${r.computeClientId}`)
+        }
+        else if (r.page === 'service_app') {
+            navigate(`/service_app/${r.serviceName}/${r.appName}`)
         }
         else if (r.page === 'set_access_token') {
             navigate(`/set_access_token?access_token=${r.accessToken}`)

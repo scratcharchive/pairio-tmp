@@ -27,9 +27,9 @@ const ComputeClientPage: FunctionComponent<ComputeClientPageProps> = () => {
         <div style={{padding: 20, maxWidth: 500}}>
             <div>
                 <Hyperlink onClick={() => {
-                    setRoute({page: 'compute_clients'})
+                    setRoute({page: 'compute_client', computeClientId: computeClient.computeClientId})
                 }}>
-                    Back to compute clients
+                    Back to service
                 </Hyperlink>
             </div>
             <hr />
@@ -70,7 +70,7 @@ const ComputeClientPage: FunctionComponent<ComputeClientPageProps> = () => {
                 <button onClick={async () => {
                     if (!window.confirm('Delete computeClient?')) return
                     await deleteComputeClient()
-                    setRoute({page: 'compute_clients'})
+                    setRoute({page: 'service', serviceName: computeClient.serviceName})
                 }}>
                     Delete compute client
                 </button>

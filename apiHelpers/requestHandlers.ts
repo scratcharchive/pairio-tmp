@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import allowCors from "./allowCors.js"; // remove .js for local dev
-import { getMongoClient } from "./getMongoClient.js"; // remove .js for local dev
-import { AddServiceAppResponse, AddServiceResponse, AddUserResponse, CancelJobResponse, CreateJobResponse, CreateServiceComputeClientResponse, DeleteServiceAppResponse, DeleteServiceComputeClientResponse, DeleteServiceResponse, GetJobResponse, GetJobsResponse, GetServiceAppResponse, GetServiceAppsResponse, GetServiceComputeClientResponse, GetServiceComputeClientsResponse, GetServiceResponse, GetServicesResponse, GetSignedUploadUrlResponse, PairioJob, PairioJobDefinition, PairioService, PairioServiceApp, PairioServiceComputeClient, PairioUser, ResetUserApiKeyResponse, SetServiceAppInfoResponse, SetServiceInfoResponse, SetUserInfoResponse, isAddServiceAppRequest, isAddServiceRequest, isAddUserRequest, isCancelJobRequest, isCreateJobRequest, isCreateServiceComputeClientRequest, isDeleteServiceAppRequest, isDeleteServiceComputeClientRequest, isDeleteServiceRequest, isGetJobRequest, isGetJobsRequest, isGetServiceAppRequest, isGetServiceAppsRequest, isGetServiceComputeClientRequest, isGetServiceComputeClientsRequest, isGetServiceRequest, isGetServicesRequest, isGetSignedUploadUrlRequest, isPairioJob, isPairioService, isPairioServiceApp, isPairioServiceComputeClient, isPairioUser, isResetUserApiKeyRequest, isSetJobStatusRequest, isSetServiceAppInfoRequest, isSetServiceInfoRequest, isSetUserInfoRequest } from "./types.js"; // remove .js for local dev
+import allowCors from "./allowCors"; // remove .js for local dev
+import { getMongoClient } from "./getMongoClient"; // remove .js for local dev
+import { AddServiceAppResponse, AddServiceResponse, AddUserResponse, CancelJobResponse, CreateJobResponse, CreateComputeClientResponse, DeleteServiceAppResponse, DeleteComputeClientResponse, DeleteServiceResponse, GetJobResponse, GetJobsResponse, GetServiceAppResponse, GetServiceAppsResponse, GetComputeClientResponse, GetComputeClientsResponse, GetServiceResponse, GetServicesResponse, GetSignedUploadUrlResponse, PairioJob, PairioJobDefinition, PairioService, PairioServiceApp, PairioComputeClient, PairioUser, ResetUserApiKeyResponse, SetServiceAppInfoResponse, SetServiceInfoResponse, SetUserInfoResponse, isAddServiceAppRequest, isAddServiceRequest, isAddUserRequest, isCancelJobRequest, isCreateJobRequest, isCreateComputeClientRequest, isDeleteServiceAppRequest, isDeleteComputeClientRequest, isDeleteServiceRequest, isGetJobRequest, isGetJobsRequest, isGetServiceAppRequest, isGetServiceAppsRequest, isGetComputeClientRequest, isGetComputeClientsRequest, isGetServiceRequest, isGetServicesRequest, isGetSignedUploadUrlRequest, isPairioJob, isPairioService, isPairioServiceApp, isPairioComputeClient, isPairioUser, isResetUserApiKeyRequest, isSetJobStatusRequest, isSetServiceAppInfoRequest, isSetServiceInfoRequest, isSetUserInfoRequest, isSetComputeClientInfoRequest, SetComputeClientInfoResponse } from "./types"; // remove .js for local dev
 
 const TEMPORY_ACCESS_TOKEN = process.env.TEMPORY_ACCESS_TOKEN;
 if (!TEMPORY_ACCESS_TOKEN) {
@@ -15,7 +15,7 @@ const collectionNames = {
     users: 'users',
     services: 'services',
     serviceApps: 'serviceApps',
-    serviceComputeClients: 'serviceComputeClients',
+    computeClients: 'computeClients',
     jobs: 'jobs'
 };
 
@@ -199,13 +199,13 @@ export const addServiceAppHandler = allowCors(async (req: VercelRequest, res: Ve
         res.status(400).json({ error: "Invalid request" });
         return;
     }
-    const serviceName = rr.app.serviceName;
+    const serviceName = rr.serviceApp.serviceName;
     const service = await fetchService(serviceName);
     if (!service) {
         res.status(404).json({ error: "Service not found" });
         return;
     }
-    const app = rr.app;
+    const app = rr.serviceApp;
     const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
     if (!(await authenticateGitHubUser(service.userId, gitHubAccessToken))) {
         res.status(401).json({ error: "Unauthorized" });
@@ -609,7 +609,7 @@ export const setJobStatusHandler = allowCors(async (req: VercelRequest, res: Ver
             res.status(404).json({ error: "Job not found" });
             return;
         }
-        const computeClient = await fetchServiceComputeClient(computeClientId);
+        const computeClient = await fetchComputeClient(computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
@@ -734,19 +734,19 @@ export const getSignedUploadUrlHandler = allowCors(async (req: VercelRequest, re
     }
 });
 
-// deleteServiceComputeClient handler
-export const deleteServiceComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// deleteComputeClient handler
+export const deleteComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isDeleteServiceComputeClientRequest(rr)) {
+    if (!isDeleteComputeClientRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const computeClient = await fetchServiceComputeClient(rr.computeClientId);
+        const computeClient = await fetchComputeClient(rr.computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
@@ -756,9 +756,9 @@ export const deleteServiceComputeClientHandler = allowCors(async (req: VercelReq
             res.status(401).json({ error: "Unauthorized" });
             return;
         }
-        await deleteServiceComputeClient(rr.computeClientId);
-        const resp: DeleteServiceComputeClientResponse = {
-            type: 'deleteServiceComputeClientResponse'
+        await deleteComputeClient(rr.computeClientId);
+        const resp: DeleteComputeClientResponse = {
+            type: 'deleteComputeClientResponse'
         };
         res.status(200).json(resp);
     }
@@ -768,14 +768,14 @@ export const deleteServiceComputeClientHandler = allowCors(async (req: VercelReq
     }
 });
 
-// createServiceComputeClient handler
-export const createServiceComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// createComputeClient handler
+export const createComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isCreateServiceComputeClientRequest(rr)) {
+    if (!isCreateComputeClientRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
@@ -784,7 +784,7 @@ export const createServiceComputeClientHandler = allowCors(async (req: VercelReq
         res.status(401).json({ error: "Unauthorized" });
         return;
     }
-    const computeClient: PairioServiceComputeClient = {
+    const computeClient: PairioComputeClient = {
         userId: rr.userId,
         serviceName: rr.serviceName,
         computeClientId: generateComputeClientId(),
@@ -794,9 +794,9 @@ export const createServiceComputeClientHandler = allowCors(async (req: VercelReq
         computeSlots: []
     };
     try {
-        await insertServiceComputeClient(computeClient);
-        const resp: CreateServiceComputeClientResponse = {
-            type: 'createServiceComputeClientResponse',
+        await insertComputeClient(computeClient);
+        const resp: CreateComputeClientResponse = {
+            type: 'createComputeClientResponse',
             computeClientId: computeClient.computeClientId,
             computeClientPrivateKey: computeClient.computeClientPrivateKey || '' // should not be null
         };
@@ -808,27 +808,27 @@ export const createServiceComputeClientHandler = allowCors(async (req: VercelReq
     }
 });
 
-// getServiceComputeClient handler
-export const getServiceComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// getComputeClient handler
+export const getComputeClientHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isGetServiceComputeClientRequest(rr)) {
+    if (!isGetComputeClientRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        const computeClient = await fetchServiceComputeClient(rr.computeClientId);
+        const computeClient = await fetchComputeClient(rr.computeClientId);
         if (!computeClient) {
             res.status(404).json({ error: "Compute client not found" });
             return;
         }
         // hide the private key
         computeClient.computeClientPrivateKey = null;
-        const resp: GetServiceComputeClientResponse = {
-            type: 'getServiceComputeClientResponse',
+        const resp: GetComputeClientResponse = {
+            type: 'getComputeClientResponse',
             computeClient
         };
         res.status(200).json(resp);
@@ -839,51 +839,68 @@ export const getServiceComputeClientHandler = allowCors(async (req: VercelReques
     }
 });
 
-// getServiceComputeClients handler
-export const getServiceComputeClientsHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+// getComputeClients handler
+export const getComputeClientsHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
     if (req.method !== "POST") {
         res.status(405).json({ error: "Method not allowed" });
         return;
     }
     const rr = req.body;
-    if (!isGetServiceComputeClientsRequest(rr)) {
+    if (!isGetComputeClientsRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
     }
     try {
-        if (rr.userId) {
-            if (rr.serviceName) {
-                res.status(400).json({ error: "Cannot specify both userId and serviceName in request" });
-                return;
-
-            }
-            const computeClients = await fetchServiceComputeClientsForUser(rr.userId);
+        if (rr.serviceName) {
+            const computeClients = await fetchComputeClientsForService(rr.serviceName);
             // hide the private keys
             for (const computeClient of computeClients) {
                 computeClient.computeClientPrivateKey = null;
             }
-            const resp: GetServiceComputeClientsResponse = {
-                type: 'getServiceComputeClientsResponse',
-                computeClients
-            };
-            res.status(200).json(resp);
-        }
-        else if (rr.serviceName) {
-            const computeClients = await fetchServiceComputeClientsForService(rr.serviceName);
-            // hide the private keys
-            for (const computeClient of computeClients) {
-                computeClient.computeClientPrivateKey = null;
-            }
-            const resp: GetServiceComputeClientsResponse = {
-                type: 'getServiceComputeClientsResponse',
+            const resp: GetComputeClientsResponse = {
+                type: 'getComputeClientsResponse',
                 computeClients
             };
             res.status(200).json(resp);
         }
         else {
-            res.status(400).json({ error: "Must specify either userId or serviceName in request" });
+            res.status(400).json({ error: "Must specify serviceName in request" });
             return;
         }
+    }
+    catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// setComputeClientInfo handler
+export const setComputeClientInfoHandler = allowCors(async (req: VercelRequest, res: VercelResponse) => {
+    const rr = req.body;
+    if (!isSetComputeClientInfoRequest(rr)) {
+        res.status(400).json({ error: "Invalid request" });
+        return;
+    }
+    try {
+        const computeClient = await fetchComputeClient(rr.computeClientId);
+        if (!computeClient) {
+            res.status(404).json({ error: "Compute client not found" });
+            return;
+        }
+        const gitHubAccessToken = req.headers.authorization?.split(" ")[1]; // Extract the token
+        if (!(await authenticateGitHubUser(computeClient.userId, gitHubAccessToken))) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        const update: { [key: string]: any } = {};
+        if (rr.label !== undefined) update['label'] = rr.label;
+        if (rr.description !== undefined) update['description'] = rr.description;
+        if (rr.computeSlots !== undefined) update['computeSlots'] = rr.computeSlots;
+        await updateComputeClient(rr.computeClientId, update);
+        const resp: SetComputeClientInfoResponse = {
+            type: 'setComputeClientInfoResponse'
+        };
+        res.status(200).json(resp);
     }
     catch (e) {
         console.error(e);
@@ -1005,7 +1022,6 @@ export const getServiceAppsHandler = allowCors(async (req: VercelRequest, res: V
         return;
     }
     const rr = req.body;
-    console.log('---- rr', rr)
     if (!isGetServiceAppsRequest(rr)) {
         res.status(400).json({ error: "Invalid request" });
         return;
@@ -1019,7 +1035,7 @@ export const getServiceAppsHandler = allowCors(async (req: VercelRequest, res: V
             const apps = await fetchServiceAppsForAppName(rr.appName);
             const resp: GetServiceAppsResponse = {
                 type: 'getServiceAppsResponse',
-                apps
+                serviceApps: apps
             };
             res.status(200).json(resp);
         }
@@ -1027,7 +1043,7 @@ export const getServiceAppsHandler = allowCors(async (req: VercelRequest, res: V
             const apps = await fetchServiceAppsForServiceName(rr.serviceName);
             const resp: GetServiceAppsResponse = {
                 type: 'getServiceAppsResponse',
-                apps
+                serviceApps: apps
             };
             res.status(200).json(resp);
         }
@@ -1243,58 +1259,52 @@ const insertJob = async (job: PairioJob) => {
     await collection.insertOne(job);
 }
 
-const insertServiceComputeClient = async (computeClient: PairioServiceComputeClient) => {
+const insertComputeClient = async (computeClient: PairioComputeClient) => {
     const client = await getMongoClient();
-    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
+    const collection = client.db(dbName).collection(collectionNames.computeClients);
     await collection.insertOne(computeClient);
 }
 
-const fetchServiceComputeClient = async (computeClientId: string) => {
+const fetchComputeClient = async (computeClientId: string) => {
     const client = await getMongoClient();
-    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
+    const collection = client.db(dbName).collection(collectionNames.computeClients);
     const computeClient = await collection.findOne({ computeClientId });
     if (!computeClient) return null;
     removeMongoId(computeClient);
-    if (!isPairioServiceComputeClient(computeClient)) {
+    if (!isPairioComputeClient(computeClient)) {
         throw Error('Invalid compute client in database');
     }
     return computeClient;
 }
 
-const fetchServiceComputeClientsForUser = async (userId: string) => {
+const fetchComputeClientsForService = async (serviceName: string) => {
     const client = await getMongoClient();
-    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
-    const computeClients = await collection.find({ userId }).toArray();
-    for (const computeClient of computeClients) {
-        removeMongoId(computeClient);
-        if (!isPairioServiceComputeClient(computeClient)) {
-            throw Error('Invalid compute client in database');
-        }
-    }
-    return computeClients.map((computeClient: any) => computeClient as PairioServiceComputeClient);
-}
-
-const fetchServiceComputeClientsForService = async (serviceName: string) => {
-    const client = await getMongoClient();
-    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
+    const collection = client.db(dbName).collection(collectionNames.computeClients);
     const computeClients = await collection.find({ serviceName }).toArray();
     for (const computeClient of computeClients) {
         removeMongoId(computeClient);
-        if (!isPairioServiceComputeClient(computeClient)) {
+        if (!isPairioComputeClient(computeClient)) {
             throw Error('Invalid compute client in database');
         }
     }
-    return computeClients.map((computeClient: any) => computeClient as PairioServiceComputeClient);
+    return computeClients.map((computeClient: any) => computeClient as PairioComputeClient);
 }
 
-const deleteServiceComputeClient = async (computeClientId: string) => {
+const deleteComputeClient = async (computeClientId: string) => {
     const client = await getMongoClient();
-    const collection = client.db(dbName).collection(collectionNames.serviceComputeClients);
+    const collection = client.db(dbName).collection(collectionNames.computeClients);
     await collection.deleteOne({ computeClientId });
 }
 
+const updateComputeClient = async (computeClientId: string, update: any) => {
+    const client = await getMongoClient();
+    const collection = client.db(dbName).collection(collectionNames.computeClients);
+    await collection
+        .updateOne({ computeClientId }, { $set: update });
+}
+
 const authenticateComputeClient = async (computeClientId: string, authorizationToken: string | undefined): Promise<boolean> => {
-    const computeClient = await fetchServiceComputeClient(computeClientId);
+    const computeClient = await fetchComputeClient(computeClientId);
     if (!computeClient) return false;
     if (computeClient.computeClientPrivateKey !== authorizationToken) return false;
     return true;

@@ -2,7 +2,7 @@ import { FunctionComponent } from "react";
 import LoginButton from "../../LoginButton";
 import { Hyperlink } from "@fi-sci/misc";
 import useRoute from "../../useRoute";
-import useGitHubAccessToken from "../../useGitHubAccessToken";
+import { useLogin } from "../../LoginContext/LoginContext";
 // import { getGitHubAccessToken } from "./App";
 
 type Props = {
@@ -11,7 +11,7 @@ type Props = {
 
 const HomePage: FunctionComponent<Props> = () => {
   const { setRoute } = useRoute();
-  const { userId } = useGitHubAccessToken();
+  const { userId } = useLogin();
   return (
     <div style={{padding: 30}}>
       <h3>Pairio - a prototype for the next Dendro</h3>
@@ -21,12 +21,8 @@ const HomePage: FunctionComponent<Props> = () => {
         <div>
           <div>
             <Hyperlink onClick={() => {
-              setRoute({page: 'apps'})
-            }}>Apps</Hyperlink>
-            &nbsp;
-            <Hyperlink onClick={() => {
-              setRoute({page: 'compute_clients'})
-            }}>Compute clients</Hyperlink>
+              setRoute({page: 'services'})
+            }}>Services</Hyperlink>
           </div>
         </div>
       )}

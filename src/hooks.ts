@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AddServiceRequest, CreateServiceComputeClientRequest, DeleteServiceComputeClientRequest, DeleteServiceRequest, GetServiceComputeClientRequest, GetServiceComputeClientsRequest, GetServiceRequest, GetServicesRequest, PairioService, PairioServiceComputeClient, PairioServiceUser, SetServiceInfoRequest, isAddServiceResponse, isCreateServiceComputeClientResponse, isGetServiceComputeClientResponse, isGetServiceComputeClientsResponse, isGetServiceResponse, isGetServicesResponse, isSetServiceInfoResponse } from "./types";
-import useGitHubAccessToken from "./useGitHubAccessToken";
+import { AddServiceRequest, CreateComputeClientRequest, DeleteComputeClientRequest, DeleteServiceRequest, GetComputeClientRequest, GetComputeClientsRequest, GetServiceRequest, GetServicesRequest, PairioService, PairioComputeClient, PairioServiceUser, SetServiceInfoRequest, isAddServiceResponse, isCreateComputeClientResponse, isGetComputeClientResponse, isGetComputeClientsResponse, isGetServiceResponse, isGetServicesResponse, isSetServiceInfoResponse, SetComputeClientInfoRequest, isSetComputeClientInfoResponse, PairioServiceApp, GetServiceAppsRequest, isGetServiceAppsResponse, AddServiceAppRequest, isAddServiceAppResponse, isPairioAppSpecification } from "./types";
+import { useLogin } from "./LoginContext/LoginContext";
 
-const apiUrl = 'https://pairio.vercel.app'
-// const apiUrl = 'http://localhost:3000'
+// const apiUrl = 'https://pairio.vercel.app'
+const apiUrl = 'http://localhost:3000'
 
 export const useServices = () => {
-    const { userId, accessToken } = useGitHubAccessToken();
+    const { userId, githubAccessToken } = useLogin();
     const [services, setServices] = useState<PairioService[] | undefined>(undefined)
     const [refreshCode, setRefreshCode] = useState(0)
     const refreshServices = useCallback(() => {
@@ -34,20 +34,20 @@ export const useServices = () => {
     }, [userId, refreshCode])
 
     const addService = useCallback(async (serviceName: string) => {
-        if (!accessToken) return;
+        if (!githubAccessToken) return;
         if (!userId) return;
         const req: AddServiceRequest = {
             type: 'addServiceRequest',
             userId,
             serviceName
         }
-        const resp = await apiPostRequest('addService', req, accessToken)
+        const resp = await apiPostRequest('addService', req, githubAccessToken)
         if (!isAddServiceResponse(resp)) {
             console.error('Invalid response', resp)
             return
         }
         refreshServices()
-    }, [refreshServices, accessToken, userId])
+    }, [refreshServices, githubAccessToken, userId])
 
     return {
         services,
@@ -57,22 +57,23 @@ export const useServices = () => {
 }
 
 export const useService = (serviceName: string) => {
-    const { accessToken } = useGitHubAccessToken()
+    const { githubAccessToken, userId } = useLogin()
     const [service, setService] = useState<PairioService | undefined>(undefined)
     const [refreshCode, setRefreshCode] = useState(0)
     const refreshService = useCallback(() => {
         setRefreshCode(c => c + 1)
     }, [])
+
     useEffect(() => {
         let canceled = false
         setService(undefined)
-        if (!accessToken) return
+        if (!githubAccessToken) return
         (async () => {
             const req: GetServiceRequest = {
                 type: 'getServiceRequest',
                 serviceName
             }
-            const resp = await apiPostRequest('getService', req, accessToken)
+            const resp = await apiPostRequest('getService', req, githubAccessToken)
             if (canceled) return
             if (!isGetServiceResponse(resp)) {
                 console.error('Invalid response', resp)
@@ -81,143 +82,196 @@ export const useService = (serviceName: string) => {
             setService(resp.service)
         })()
         return () => { canceled = true }
-    }, [serviceName, accessToken, refreshCode])
+    }, [serviceName, githubAccessToken, refreshCode])
 
     const deleteService = useCallback(async () => {
-        if (!accessToken) return
+        if (!githubAccessToken) return
         const req: DeleteServiceRequest = {
             type: 'deleteServiceRequest',
             serviceName
         }
-        const resp = await apiPostRequest('deleteService', req, accessToken)
+        const resp = await apiPostRequest('deleteService', req, githubAccessToken)
         if (!isGetServiceResponse(resp)) {
             console.error('Invalid response', resp)
             return
         }
         setService(undefined)
-    }, [serviceName, accessToken])
+    }, [serviceName, githubAccessToken])
 
     const setServiceInfo = useMemo(() => (async (o: { users: PairioServiceUser[] }) => {
         const { users } = o
+        if (!githubAccessToken) return
         const req: SetServiceInfoRequest = {
             type: 'setServiceInfoRequest',
             serviceName,
             users
         }
-        const resp = await apiPostRequest('setServiceInfo', req, accessToken)
+        const resp = await apiPostRequest('setServiceInfo', req, githubAccessToken)
         if (!isSetServiceInfoResponse(resp)) {
             console.error('Invalid response', resp)
             return
         }
         refreshService()
-    }), [serviceName, accessToken, refreshService])
+    }), [serviceName, githubAccessToken, refreshService])
 
-    return { service, deleteService, setServiceInfo, refreshService }
+    const createComputeClient = useMemo(() => (async (o: { label: string }) => {
+        if (!userId) return
+        if (!githubAccessToken) return
+        const { label } = o
+        const req: CreateComputeClientRequest = {
+            type: 'createComputeClientRequest',
+            userId,
+            serviceName
+        }
+        const resp = await apiPostRequest('createComputeClient', req, githubAccessToken)
+        if (!isCreateComputeClientResponse(resp)) {
+            console.error('Invalid response', resp)
+            return
+        }
+        const computeClientId = resp.computeClientId
+        const computeClientPrivateKey = resp.computeClientPrivateKey
+        const req2: SetComputeClientInfoRequest = {
+            type: 'setComputeClientInfoRequest',
+            computeClientId: resp.computeClientId,
+            label
+        }
+        const resp2 = await apiPostRequest('setComputeClientInfo', req2, githubAccessToken)
+        if (!isSetComputeClientInfoResponse(resp2)) {
+            console.error('Invalid response', resp2)
+            return
+        }
+        return {computeClientId, computeClientPrivateKey}
+    }), [])
+
+    const addServiceAppFromSourceUri = useMemo(() => (async (o: { sourceUri: string }) => {
+        if (!githubAccessToken) return
+        const spec = await loadJsonFromUri(o.sourceUri)
+        if (!isPairioAppSpecification(spec)) {
+            throw Error('Invalid app specification')
+        }
+        const serviceApp: PairioServiceApp = {
+            serviceName,
+            appName: spec.name,
+            appSpecificationUri: o.sourceUri,
+            appSpecificationCommit: '', // todo
+            appSpecification: spec
+        }
+        const req: AddServiceAppRequest = {
+            type: 'addServiceAppRequest',
+            serviceApp
+        }
+        const resp = await apiPostRequest('addServiceApp', req, githubAccessToken)
+        if (!isAddServiceAppResponse(resp)) {
+            console.error('Invalid response', resp)
+            return
+        }
+        return serviceApp
+    }), [])
+
+    return { service, deleteService, setServiceInfo, refreshService, createComputeClient, addServiceAppFromSourceUri }
 }
 
-export const useServiceComputeClients = () => {
-    const { accessToken, userId } = useGitHubAccessToken()
-    const [computeClients, setServiceComputeClients] = useState<PairioServiceComputeClient[] | undefined>(undefined)
+export const useComputeClients = (serviceName: string) => {
+    const [computeClients, setComputeClients] = useState<PairioComputeClient[] | undefined>(undefined)
     const [refreshCode, setRefreshCode] = useState(0)
-    const refreshServiceComputeClients = useCallback(() => {
+    const refreshComputeClients = useCallback(() => {
         setRefreshCode(c => c + 1)
     }, [])
     useEffect(() => {
         let canceled = false
-        setServiceComputeClients(undefined);
+        setComputeClients(undefined);
         (async () => {
-            const req: GetServiceComputeClientsRequest = {
-                type: 'getServiceComputeClientsRequest',
-                userId
+            const req: GetComputeClientsRequest = {
+                type: 'getComputeClientsRequest',
+                serviceName
             }
-            const resp = await apiPostRequest('getServiceComputeClients', req, accessToken)
+            const resp = await apiPostRequest('getComputeClients', req)
             if (canceled) return
-            if (!isGetServiceComputeClientsResponse(resp)) {
+            if (!isGetComputeClientsResponse(resp)) {
                 console.error('Invalid response', resp)
                 return
             }
-            setServiceComputeClients(resp.computeClients)
+            setComputeClients(resp.computeClients)
         })()
         return () => { canceled = true }
-    }, [accessToken, refreshCode, userId])
-
-    const createServiceComputeClient = useMemo(() => (async (serviceName: string) => {
-        if (!userId) return
-        // const computeSlot: ServiceComputeClientComputeSlot = {
-        //     computeSlotId: '', // will be generated
-        //     numCpus: 4,
-        //     numGpus: 0,
-        //     memoryGb: 8,
-        //     timeSec: 3600,
-        //     minNumCpus: 0,
-        //     minNumGpus: 0,
-        //     minMemoryGb: 0,
-        //     minTimeSec: 0,
-        //     multiplicity: 1
-        // }
-        const req: CreateServiceComputeClientRequest = {
-            type: 'createServiceComputeClientRequest',
-            serviceName,
-            userId
-        }
-        const resp = await apiPostRequest('createServiceComputeClient', req, accessToken)
-        if (!isCreateServiceComputeClientResponse(resp)) {
-            console.error('Invalid response', resp)
-            return
-        }
-        refreshServiceComputeClients()
-        return { computeClientId: resp.computeClientId, computeClientPrivateKey: resp.computeClientPrivateKey }
-    }), [userId, accessToken, refreshServiceComputeClients])
+    }, [refreshCode, serviceName])
 
     return {
         computeClients,
-        createServiceComputeClient,
-        refreshServiceComputeClients
+        refreshComputeClients
     }
 }
 
-export const useServiceComputeClient = (computeClientId: string) => {
-    const { accessToken } = useGitHubAccessToken()
-    const [computeClient, setServiceComputeClient] = useState<PairioServiceComputeClient | undefined>(undefined)
+export const useServiceApps = (serviceName: string) => {
+    const [serviceApps, setServiceApps] = useState<PairioServiceApp[] | undefined>(undefined)
     const [refreshCode, setRefreshCode] = useState(0)
-    const refreshServiceComputeClient = useCallback(() => {
+    const refreshServiceApps = useCallback(() => {
         setRefreshCode(c => c + 1)
     }, [])
     useEffect(() => {
         let canceled = false
-        setServiceComputeClient(undefined)
-        if (!accessToken) return
-        (async () => {
-            const req: GetServiceComputeClientRequest = {
-                type: 'getServiceComputeClientRequest',
-                computeClientId
+        setServiceApps(undefined)
+        ;(async () => {
+            const req: GetServiceAppsRequest = {
+                type: 'getServiceAppsRequest',
+                serviceName
             }
-            const resp = await apiPostRequest('getServiceComputeClient', req, accessToken)
+            const resp = await apiPostRequest('getServiceApps', req)
             if (canceled) return
-            if (!isGetServiceComputeClientResponse(resp)) {
+            if (!isGetServiceAppsResponse(resp)) {
                 console.error('Invalid response', resp)
                 return
             }
-            setServiceComputeClient(resp.computeClient)
+            setServiceApps(resp.serviceApps)
         })()
         return () => { canceled = true }
-    }, [computeClientId, accessToken, refreshCode])
+    }, [serviceName, refreshCode])
 
-    const deleteServiceComputeClient = useCallback(async () => {
-        if (!accessToken) return
-        const req: DeleteServiceComputeClientRequest = {
-            type: 'deleteServiceComputeClientRequest',
+    return { serviceApps, refreshServiceApps }
+}
+
+export const useComputeClient = (computeClientId: string) => {
+    const { githubAccessToken } = useLogin()
+    const [computeClient, setComputeClient] = useState<PairioComputeClient | undefined>(undefined)
+    const [refreshCode, setRefreshCode] = useState(0)
+    const refreshComputeClient = useCallback(() => {
+        setRefreshCode(c => c + 1)
+    }, [])
+    useEffect(() => {
+        let canceled = false
+        setComputeClient(undefined)
+        if (!githubAccessToken) return
+        (async () => {
+            const req: GetComputeClientRequest = {
+                type: 'getComputeClientRequest',
+                computeClientId
+            }
+            const resp = await apiPostRequest('getComputeClient', req, githubAccessToken)
+            if (canceled) return
+            if (!isGetComputeClientResponse(resp)) {
+                console.error('Invalid response', resp)
+                return
+            }
+            setComputeClient(resp.computeClient)
+        })()
+        return () => { canceled = true }
+    }, [computeClientId, githubAccessToken, refreshCode])
+
+    const deleteComputeClient = useCallback(async () => {
+        if (!githubAccessToken) return
+        const req: DeleteComputeClientRequest = {
+            type: 'deleteComputeClientRequest',
             computeClientId
         }
-        const resp = await apiPostRequest('deleteServiceComputeClient', req, accessToken)
-        if (!isGetServiceComputeClientResponse(resp)) {
+        const resp = await apiPostRequest('deleteComputeClient', req, githubAccessToken)
+        if (!isGetComputeClientResponse(resp)) {
             console.error('Invalid response', resp)
             return
         }
-        setServiceComputeClient(undefined)
-    }, [computeClientId, accessToken])
+        setComputeClient(undefined)
+    }, [computeClientId, githubAccessToken])
 
-    return { computeClient, deleteServiceComputeClient, refreshServiceComputeClient }
+    return { computeClient, deleteComputeClient, refreshComputeClient }
 }
 
 const apiPostRequest = async (path: string, req: any, accessToken?: string) => {
@@ -227,7 +281,6 @@ const apiPostRequest = async (path: string, req: any, accessToken?: string) => {
         headers['Authorization'] = `Bearer ${accessToken}`
     }
     headers['Content-Type'] = 'application/json'
-    console.log('---- headers', headers)
     const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -239,4 +292,24 @@ const apiPostRequest = async (path: string, req: any, accessToken?: string) => {
     }
     const resp = await response.json()
     return resp
+}
+
+const loadJsonFromUri = async (uri: string) => {
+    const url = getUrlFromUri(uri)
+    const response = await fetch(url)
+    if (!response.ok) {
+        throw new Error(`Error loading from source: ${response.statusText}`)
+    }
+    const json = await response.json()
+    return json
+}
+
+const getUrlFromUri = (uri: string) => {
+    if (uri.startsWith('https://github.com/')) {
+        const raw_url = uri.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/')
+        return raw_url
+    }
+    else {
+        return uri
+    }
 }

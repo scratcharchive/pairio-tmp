@@ -1,25 +1,29 @@
-import './App.css'
-import { BrowserRouter } from 'react-router-dom'
-import HomePage from './pages/HomePage/HomePage'
-import LogInPage from './LogInPage'
-import useRoute from './useRoute'
 import { useEffect } from 'react'
-import ServicesPage from './pages/ServicesPage/ServicesPage'
+import { BrowserRouter } from 'react-router-dom'
+import './App.css'
+import LogInPage from './LogInPage'
+import HomePage from './pages/HomePage/HomePage'
 import ServicePage from './pages/ServicePage/ServicePage'
-import ComputeClientsPage from './pages/ComputeClientsPage/ComputeClientsPage'
+import ServicesPage from './pages/ServicesPage/ServicesPage'
+import useRoute from './useRoute'
 import ComputeClientPage from './pages/ComputeClientPage/ComputeClientPage'
+import { SetupLogin } from './LoginContext/SetupLogin'
+import { useWindowDimensions } from '@fi-sci/misc'
 // import useRoute from './useRoute'
 
 function App() {
   return (
-    <BrowserRouter>
-      <MainWindow />
-    </BrowserRouter>
+    <SetupLogin>
+      <BrowserRouter>
+        <MainWindow />
+      </BrowserRouter>
+    </SetupLogin>
   )
 }
 
 function MainWindow() {
   const { route } = useRoute()
+  const {width, height} = useWindowDimensions()
   if (route.page === 'home') {
     return <HomePage />
   }
@@ -27,10 +31,7 @@ function MainWindow() {
     return <ServicesPage />
   }
   else if (route.page === 'service') {
-    return <ServicePage />
-  }
-  else if (route.page === 'compute_clients') {
-    return <ComputeClientsPage />
+    return <ServicePage width={width} height={height} />
   }
   else if (route.page === 'compute_client') {
     return <ComputeClientPage />
@@ -53,7 +54,6 @@ const SetAccessTokenComponent = () => {
   }
   useEffect(() => {
     localStorage.setItem('pairio_github_access_token', JSON.stringify({accessToken: route.accessToken}))
-    console.log('---- setting route to home')
     setRoute({
       page: 'home'
     })

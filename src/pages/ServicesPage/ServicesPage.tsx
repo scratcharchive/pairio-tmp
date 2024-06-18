@@ -3,16 +3,16 @@ import { Hyperlink, SmallIconButton } from "@fi-sci/misc";
 import { Add } from "@mui/icons-material";
 import { FunctionComponent, useCallback } from "react";
 import { useServices } from "../../hooks";
-import useGitHubAccessToken from "../../useGitHubAccessToken";
 import useRoute from "../../useRoute";
 import ServicesTable from "./ServicesTable";
+import { useLogin } from "../../LoginContext/LoginContext";
 
 type ServicesPageProps = {
     // none
 }
 
 const ServicesPage: FunctionComponent<ServicesPageProps> = () => {
-    const { userId } = useGitHubAccessToken();
+    const { userId } = useLogin();
     const { services, addService } = useServices()
     const { setRoute } = useRoute()
 
