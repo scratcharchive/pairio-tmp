@@ -57,8 +57,8 @@ export type PairioComputeClient = {
   serviceName: string
   computeClientId: string
   computeClientPrivateKey: string | null
+  computeClientName: string // unique for service
   userId: string
-  label: string
   description: string
   computeSlots: ComputeClientComputeSlot[]
 }
@@ -68,7 +68,7 @@ export const isPairioComputeClient = (x: any): x is PairioComputeClient => {
     serviceName: isString,
     computeClientId: isString,
     computeClientPrivateKey: isOneOf([isString, isNull]),
-    userId: isString,
+    computeClientName: isString,
     label: isString,
     description: isString,
     computeSlots: isArrayOf(isComputeClientComputeSlot)
@@ -240,6 +240,7 @@ export type PairioJob = {
   status: PairioJobStatus
   error: string | null
   computeClientId: string | null
+  computeClientName: string | null
   computeSlot: ComputeClientComputeSlot | null
   imageUri: string | null
 }
@@ -268,6 +269,7 @@ export const isPairioJob = (x: any): x is PairioJob => {
     status: isPairioJobStatus,
     error: isOneOf([isString, isNull]),
     computeClientId: isOneOf([isString, isNull]),
+    computeClientName: isOneOf([isString, isNull]),
     computeSlot: isOneOf([isComputeClientComputeSlot, isNull]),
     imageUri: isOneOf([isString, isNull])
   })
@@ -736,7 +738,9 @@ export const isSetJobStatusResponse = (x: any): x is SetJobStatusResponse => {
 export type GetSignedUploadUrlRequest = {
   type: 'getSignedUploadUrlRequest'
   jobId: string
-  url: string
+  uploadType: 'output' | 'consoleOutput' | 'resourceUtilizationLog' | 'other'
+  outputName?: string
+  otherName?: string
   size: number
 }
 
@@ -744,7 +748,9 @@ export const isGetSignedUploadUrlRequest = (x: any): x is GetSignedUploadUrlRequ
   return validateObject(x, {
     type: isEqualTo('getSignedUploadUrlRequest'),
     jobId: isString,
-    url: isString,
+    uploadType: isOneOf(['output', 'consoleOutput', 'resourceUtilizationLog', 'other'].map(isEqualTo)),
+    outputName: optional(isString),
+    otherName: optional(isString),
     size: isNumber
   })
 }
@@ -765,6 +771,7 @@ export const isGetSignedUploadUrlResponse = (x: any): x is GetSignedUploadUrlRes
 export type CreateComputeClientRequest = {
   type: 'createComputeClientRequest'
   serviceName: string
+  computeClientName: string
   userId: string
 }
 
@@ -772,6 +779,7 @@ export const isCreateComputeClientRequest = (x: any): x is CreateComputeClientRe
   return validateObject(x, {
     type: isEqualTo('createComputeClientRequest'),
     serviceName: isString,
+    computeClientName: isString,
     userId: isString
   })
 }
@@ -867,7 +875,7 @@ export const isGetComputeClientsResponse = (x: any): x is GetComputeClientsRespo
 export type SetComputeClientInfoRequest = {
   type: 'setComputeClientInfoRequest'
   computeClientId: string
-  label?: string
+  computeClientName?: string
   description?: string
   computeSlots?: ComputeClientComputeSlot[]
 }
@@ -876,7 +884,7 @@ export const isSetComputeClientInfoRequest = (x: any): x is SetComputeClientInfo
   return validateObject(x, {
     type: isEqualTo('setComputeClientInfoRequest'),
     computeClientId: isString,
-    label: optional(isString),
+    computeClientName: optional(isString),
     description: optional(isString),
     computeSlots: optional(isArrayOf(isComputeClientComputeSlot))
   })
