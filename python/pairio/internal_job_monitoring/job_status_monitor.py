@@ -1,7 +1,7 @@
 import os
 import time
 from .common import _process_is_alive
-from ..common._api_request import _post_api_request
+from ..common.api_requests import get_job
 
 
 def job_status_monitor(parent_pid: str):
@@ -39,7 +39,8 @@ def job_status_monitor(parent_pid: str):
         if elapsed_since_check >= interval:
             last_check_timestamp = time.time()
             try:
-                status = _get_job_status(job_id=job_id, job_private_key=job_private_key)
+                job = get_job(job_id=job_id)
+                status = job['status']
                 if status != 'running':
                     print(f'Job status is {status}. Canceling.')
                     with open(cancel_out_file, 'w') as f:
@@ -55,34 +56,3 @@ def job_status_monitor(parent_pid: str):
                 print('Error getting job status')
 
         time.sleep(1)
-
-# // getJob
-# export type GetJobRequest = {
-#   type: 'getJobRequest'
-#   jobId: string
-#   includePrivateKey: boolean
-#   computeClientId?: string
-# }
-#
-# export type GetJobResponse = {
-#   type: 'getJobResponse'
-#   job: PairioJob
-# }
-
-def _get_job_status(*, job_id: str, job_private_key: str) -> str:
-    """Get a job status from the dendro API"""
-    url_path = '/api/getJob'
-    headers = {
-        'Authorization': f'Bearer {job_private_key}'
-    }
-    req = {
-        'type': 'getJobRequest',
-        'jobId': job_id,
-        'includePrivateKey': False
-    }
-    res = _post_api_request(
-        url_path=url_path,
-        data=req,
-        headers=headers
-    )
-    return res['status']

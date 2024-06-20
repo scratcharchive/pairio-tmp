@@ -1,10 +1,9 @@
 import os
 import subprocess
 from typing import Union
-from .PairioJob import PairioJob
-from .PairioServiceApp import PairioServiceApp
-from ._set_job_status import _set_job_status
-from ._get_service_app import _get_service_app
+from ..common.PairioJob import PairioJob
+from ..common.api_requests import set_job_status, get_service_app
+from ..common.pairio_types import PairioServiceApp
 
 
 class JobException(Exception):
@@ -18,14 +17,14 @@ def _start_job(*,
     job_id = job.jobId
     job_private_key = job.jobPrivateKey
     job_required_resources = job.requiredResources
-    _set_job_status(
+    set_job_status(
         job_id=job_id,
         job_private_key=job_private_key,
         compute_client_id=compute_client_id,
         status='starting',
         error=None
     )
-    app: PairioServiceApp = _get_service_app(service_name=job.serviceName, app_name=job.jobDefinition.appName)
+    app: PairioServiceApp = get_service_app(service_name=job.serviceName, app_name=job.jobDefinition.appName)
 
     processor = next((p for p in app.appSpecification.processors if p.name == job.jobDefinition.processorName), None)
     if not processor:
@@ -44,6 +43,7 @@ def _start_job(*,
         'PYTHONUNBUFFERED': '1',
         'JOB_ID': job_id,
         'JOB_PRIVATE_KEY': job_private_key,
+        'COMPUTE_CLIENT_ID': compute_client_id,
         'PROCESSOR_EXECUTABLE': processor_executable,
         'PAIRIO_URL': 'https://pairio.vercel.app'
     }

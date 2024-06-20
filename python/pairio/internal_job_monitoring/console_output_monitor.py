@@ -1,7 +1,8 @@
 import os
 import time
 import traceback
-from .common import _get_upload_url, _process_is_alive
+from .common import _process_is_alive
+from ..common.api_requests import get_upload_url
 
 
 def console_output_monitor(parent_pid: str):
@@ -70,7 +71,7 @@ def do_upload(*, console_out_file, job_id, job_private_key):
             new_lines.append(line.encode('utf-8'))
     text_to_upload = b'\n'.join(new_lines)
     try:
-        console_output_upload_url = _get_upload_url(
+        console_output_upload_url = get_upload_url(
             job_id=job_id,
             job_private_key=job_private_key,
             upload_type='consoleOutput',

@@ -1,6 +1,6 @@
 from typing import List
-from .PairioJob import PairioJob
-from ._set_job_status import _set_job_status
+from ..common.PairioJob import PairioJob
+from ..common.api_requests import set_job_status
 
 
 class JobManager:
@@ -34,7 +34,7 @@ class JobManager:
             from ._start_job import _start_job
             if job.requiredResources is None:
                 raise Exception('Cannot start job... requiredResources is None')
-            _set_job_status(
+            set_job_status(
                 job_id=job_id,
                 job_private_key=job_private_key,
                 compute_client_id=self._compute_client_id,
@@ -65,7 +65,7 @@ class JobManager:
         job_id = job.jobId
         job_private_key = job.jobPrivateKey
         print(f'Failing job {job_id}: {error}')
-        _set_job_status(
+        set_job_status(
             job_id=job_id,
             job_private_key=job_private_key,
             compute_client_id=self._compute_client_id,

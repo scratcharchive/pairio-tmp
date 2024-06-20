@@ -3,7 +3,8 @@ import time
 import traceback
 import json
 import psutil
-from .common import _get_upload_url, _process_is_alive
+from .common import _process_is_alive
+from ..common.api_requests import get_upload_url
 
 
 def resource_utilization_monitor(parent_pid: str):
@@ -105,10 +106,11 @@ def resource_utilization_monitor(parent_pid: str):
 def _get_gpu_loads():
     """This is a helper function for _resource_utilization_log_reader"""
     try:
-        import GPUtil
+        import GPUtil  # type: ignore
         gpus = GPUtil.getGPUs()
         return [gpu.load for gpu in gpus]
     except: # noqa
+        print('Warning: Error getting GPU loads. Perhaps GPUtil is not installed?')
         return None
 
 def do_upload(*, all_lines, job_id, job_private_key):
@@ -116,7 +118,7 @@ def do_upload(*, all_lines, job_id, job_private_key):
     print(f'Uploading {len(all_lines)} lines of resource utilization data')
     text_to_upload = b'\n'.join(all_lines)
     try:
-        resource_utilization_log_upload_url = _get_upload_url(
+        resource_utilization_log_upload_url = get_upload_url(
             job_id=job_id,
             job_private_key=job_private_key,
             upload_type='resourceUtilizationLog',

@@ -75,6 +75,19 @@ export const isPairioComputeClient = (x: any): x is PairioComputeClient => {
   })
 }
 
+// PairioAppProcessorAttribute
+export type PairioAppProcessorAttribute = {
+  name: string
+  value: string | number | boolean | string[] | number[] | boolean[]
+}
+
+export const isPairioAppProcessorAttribute = (x: any): x is PairioAppProcessorAttribute => {
+  return validateObject(x, {
+    name: isString,
+    value: isOneOf([isString, isNumber, isBoolean, isArrayOf(isString), isArrayOf(isNumber), isArrayOf(isBoolean)])
+  })
+}
+
 // PairioAppProcessor
 export type PairioAppProcessor = {
   name: string
@@ -85,6 +98,7 @@ export type PairioAppProcessor = {
   inputs: PairioAppProcessorInputFile[]
   outputs: PairioAppProcessorOutputFile[]
   parameters: PairioAppProcessorParameter[]
+  attributes: PairioAppProcessorAttribute[]
 }
 
 export const isPairioAppProcessor = (x: any): x is PairioAppProcessor => {
@@ -96,7 +110,8 @@ export const isPairioAppProcessor = (x: any): x is PairioAppProcessor => {
     executable: isString,
     inputs: isArrayOf(isPairioAppProcessorInputFile),
     outputs: isArrayOf(isPairioAppProcessorOutputFile),
-    parameters: isArrayOf(isPairioAppProcessorParameter)
+    parameters: isArrayOf(isPairioAppProcessorParameter),
+    attributes: isArrayOf(isPairioAppProcessorAttribute)
   })
 }
 
@@ -279,12 +294,14 @@ export const isPairioJob = (x: any): x is PairioJob => {
 export type PairioAppProcessorInputFile = {
   name: string
   description: string
+  list?: boolean
 }
 
 export const isPairioAppProcessorInputFile = (x: any): x is PairioAppProcessorInputFile => {
   return validateObject(x, {
     name: isString,
-    description: isString
+    description: isString,
+    list: optional(isBoolean)
   })
 }
 
@@ -316,6 +333,7 @@ export type PairioAppProcessorParameter = {
   type: PairioAppProcessorParameterTypes
   description: string
   defaultValue: string | number | boolean | string[] | number[] | undefined
+  options?: any[]
 }
 
 export const isPairioAppProcessorParameter = (x: any): x is PairioAppProcessorParameter => {
@@ -323,7 +341,8 @@ export const isPairioAppProcessorParameter = (x: any): x is PairioAppProcessorPa
     name: isString,
     type: isPairioAppProcessorParameterTypes,
     description: isString,
-    defaultValue: isOneOf([isString, isNumber, isBoolean, isArrayOf(isString), isArrayOf(isNumber), isNull])
+    defaultValue: isOneOf([isString, isNumber, isBoolean, isArrayOf(isString), isArrayOf(isNumber), isNull]),
+    options: optional(isArrayOf(() => true))
   })
 }
 

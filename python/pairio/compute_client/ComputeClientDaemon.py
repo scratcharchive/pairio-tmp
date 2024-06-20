@@ -4,9 +4,8 @@ import time
 import shutil
 import multiprocessing
 from pathlib import Path
-from ..common._api_request import _post_api_request
 from .JobManager import JobManager
-from .PairioJob import PairioJob
+from ..common.api_requests import get_jobs, get_pubsub_subscription
 
 
 class ComputeClientDaemon:
@@ -100,39 +99,12 @@ class ComputeClientDaemon:
                 pubsub_client.close() # unfortunately this doesn't actually stop the thread - it's a pubnub/python issue
 
     def _handle_jobs(self):
-        url_path = '/api/getJobsForComputeClient'
-        req = {
-            'type': 'getJobsForComputeClientRequest',
-            'computeClientId': self._compute_client_id
-        }
-        headers = {
-            'Authorization': f'Bearer {self._compute_client_private_key}'
-        }
-        resp = _post_api_request(
-            url_path=url_path,
-            data=req,
-            headers=headers
+        jobs = get_jobs(
+            compute_client_id=self._compute_client_id,
+            compute_client_private_key=self._compute_client_private_key
         )
-        jobs = resp['jobs']
-        jobs = [PairioJob(**job) for job in jobs]
         if len(jobs) > 0:
             self._job_manager.handle_jobs(jobs)
-
-
-def get_pubsub_subscription(*, compute_client_id: str, compute_client_private_key: str):
-    url_path = '/api/getPubsubSubscription'
-    req = {
-        'computeClientId': compute_client_id
-    }
-    headers = {
-        'Authorization': f'Bearer {compute_client_private_key}'
-    }
-    resp = _post_api_request(
-        url_path=url_path,
-        data=req,
-        headers=headers
-    )
-    return resp['subscription']
 
 
 def _cleanup_old_job_working_directories(dir: str):

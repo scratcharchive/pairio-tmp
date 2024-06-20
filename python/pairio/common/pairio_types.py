@@ -1,21 +1,28 @@
-from typing import List
+from typing import List, Union, Any
 from .. import BaseModel
 
 class PairioAppProcessorParameter(BaseModel):
     name: str
     type: str
     description: str
-    defaultValue: str
+    defaultValue: Any
+    options: Union[List, None] = None
 
 
 class PairioAppProcessorInputFile(BaseModel):
     name: str
     description: str
+    list: Union[bool, None] = None
 
 
 class PairioAppProcessorOutputFile(BaseModel):
     name: str
     description: str
+
+
+class PairioAppProcessorAttribute(BaseModel):
+    name: str
+    value: Any
 
 
 class PairioAppProcessor(BaseModel):
@@ -27,6 +34,7 @@ class PairioAppProcessor(BaseModel):
     inputs: List[PairioAppProcessorInputFile]
     outputs: List[PairioAppProcessorOutputFile]
     parameters: List[PairioAppProcessorParameter]
+    attributes: List[PairioAppProcessorAttribute]
 
 
 class PairioAppSpecification(BaseModel):
@@ -61,6 +69,7 @@ class PairioServiceApp(BaseModel):
 #   inputs: PairioAppProcessorInputFile[]
 #   outputs: PairioAppProcessorOutputFile[]
 #   parameters: PairioAppProcessorParameter[]
+#   attributes: PairioAppProcessorAttribute[]
 # }
 
 # // PairioAppSpecification
@@ -91,4 +100,11 @@ class PairioServiceApp(BaseModel):
 #   type: PairioAppProcessorParameterTypes
 #   description: string
 #   defaultValue: string | number | boolean | string[] | number[] | undefined
+#   options?: any[]
+# }
+#
+# // PairioAppProcessorAttribute
+# export type PairioAppProcessorAttribute = {
+#   name: string
+#   value: string | number | boolean | string[] | number[] | boolean[]
 # }
